@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import multer from 'multer'
 
 import { clientPromise } from '../database'
+import checkJwt from '../middleware/checkJwt'
 import uploadMiddleware from '../middleware/upload'
 
 const productRouter = Router()
@@ -23,7 +24,7 @@ productRouter.get('/:id', async function(req, res) {
   }
 })
 
-productRouter.post('/', async function(req, res) {
+productRouter.post('/', checkJwt, async function(req, res) {
   try {
     const client = await clientPromise
     const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
@@ -59,7 +60,7 @@ productRouter.put('/:id', uploadMiddleware.single('file'), async function(req, r
   }
 })
 
-productRouter.delete('/:id', async function(req, res) {
+productRouter.delete('/:id', checkJwt, async function(req, res) {
   try {
     const id = new ObjectId(req.params.id)
     const client = await clientPromise
