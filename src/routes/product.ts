@@ -40,22 +40,18 @@ productRouter.post('/', checkJwt, async function(req, res) {
 
 })
 
-productRouter.put('/:id', uploadMiddleware.single('file'), async function(req, res) {
+productRouter.patch('/:id', checkJwt, async function(req, res) {
   try {
     const id = new ObjectId(req.params.id)
     const client = await clientPromise
     const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
 
-    const file: any = req.file
-    const data = {...req.body}
-    if (file) data.image = file.id
-
-    await collection.findOneAndUpdate({_id: id}, {$set: data})
+    await collection.findOneAndUpdate({_id: id}, {$set: req.body})
     
     res.status(200).send(await collection.findOne({_id: id}))
 
   } catch (err) {
-    console.error(req.method, req.originalUrl, JSON.stringify(err, null, 3))
+    console.error(req.method, req.originalUrl, err)
     res.sendStatus(500)
   }
 })
