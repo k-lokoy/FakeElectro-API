@@ -30,7 +30,7 @@ imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(re
     const file: any = req.file
 
     if (!file) return res.sendStatus(500)
-    return res.status(201).send(file.id)
+    return res.status(201).send(file.id.toString())
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
