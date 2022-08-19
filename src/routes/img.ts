@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { GridFSBucket, ObjectId } from 'mongodb'
 
 import { clientPromise } from '../database'
+import checkJwt from '../middleware/checkJwt'
+import uploadMiddleware from '../middleware/upload'
 
 const imgRouter = Router()
 
@@ -16,6 +18,19 @@ imgRouter.get('/:id', async function(req, res) {
     downloadStream.on('data',  (data) => res.status(200).write(data))
     downloadStream.on('error', (err)  => res.sendStatus(404))
     downloadStream.on('end',   ()     => res.end())
+  
+  } catch (err) {
+    console.error(req.method, req.originalUrl, err)
+    res.sendStatus(500)
+  }
+})
+
+imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(req, res) {
+  try {
+    const file: any = req.file
+
+    if (!file) return res.sendStatus(500)
+    return res.status(201).send(file.id)
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
