@@ -46,7 +46,10 @@ productRouter.patch('/:id', checkJwt, async function(req, res) {
     const client = await clientPromise
     const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
 
-    await collection.findOneAndUpdate({_id: id}, {$set: req.body})
+    const data = {...req.body}
+    if (data.image) data.image = new ObjectId(data.image)
+
+    await collection.findOneAndUpdate({_id: id}, {$set: data})
     
     res.status(200).send(await collection.findOne({_id: id}))
 
