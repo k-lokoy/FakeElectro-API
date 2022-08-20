@@ -13,17 +13,19 @@ productsRouter.get('/', async function(req, res) {
 
     res.status(200).send(await Promise.all(products.map(async product => {
       const category = await categories.findOne({_id: product.category})
-      
-      return {
+
+      const data: any = {
         ...product,
         category: {
           slug: category?.slug || '',
           name: category?.name || ''
-        },
-        image: req.secure
-          ? `https://${req.get('host')}/img/${product.image}.jpg`
-          : `http://${req.get('host')}/img/${product.image}.jpg`
+        }
       }
+
+      if (data.image)
+        data.image = `http${req.secure ? 's' : ''}://${req.get('host')}/img/${product.image}.jpg`
+
+      return data
     })))
   
   } catch (err) {
