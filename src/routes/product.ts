@@ -1,10 +1,8 @@
 import { Router } from 'express'
 import { ObjectId } from 'mongodb'
-import multer from 'multer'
 
 import { clientPromise } from '../database'
 import checkJwt from '../middleware/checkJwt'
-import uploadMiddleware from '../middleware/upload'
 
 const productRouter = Router()
 
