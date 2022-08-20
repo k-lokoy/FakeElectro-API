@@ -40,4 +40,21 @@ imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(re
   }
 })
 
+imgRouter.delete('/:id', checkJwt, async function(req, res) {
+  try {
+    const id = new ObjectId(req.params.id.split('.')?.[0])
+    const client = await clientPromise
+    const db = client.db(process.env.MONGODB_DB_NAME)
+    const bucket = new GridFSBucket(db, {bucketName: 'images'})
+
+    await bucket.delete(id)
+        
+    res.sendStatus(200)
+
+  } catch (err) {
+    console.error(req.method, req.originalUrl, err)
+    res.sendStatus(500)
+  }
+})
+
 export default imgRouter
