@@ -29,7 +29,9 @@ imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(re
   try {
     const file: any = req.file
 
-    if (!file) return res.sendStatus(500)
+    if (!file)
+      return res.status(406).send('Missing file')
+
     return res.status(201).send(file.id.toString())
   
   } catch (err) {
