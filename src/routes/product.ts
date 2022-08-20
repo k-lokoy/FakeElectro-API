@@ -10,11 +10,27 @@ productRouter.get('/:id', async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
     const client = await clientPromise
-    const product = await client.db(process.env.MONGODB_DB_NAME).collection('Products').findOne({_id})
+    const db = client.db(process.env.MONGODB_DB_NAME) 
+    const product = await db.collection('Products').findOne({_id})
 
     if (!product) return res.sendStatus(404)
 
-    res.status(200).send(product)
+    const categories = await db.collection('Categories')
+    const category = await categories.findOne({_id: product.category})
+
+    const data: any = {
+      ...product,
+      category: {
+        slug: category?.slug || '',
+        name: category?.name || ''
+      }
+    }
+
+    if (product.image)
+      data.image =
+        `http${req.secure ? 's' : ''}://${req.get('host')}/img/${product.image}.jpg`
+
+    res.status(200).send(data)
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
@@ -25,11 +41,26 @@ productRouter.get('/:id', async function(req, res) {
 productRouter.post('/', checkJwt, async function(req, res) {
   try {
     const client = await clientPromise
-    const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
+    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const products = await db.collection('Products')
+    const categories = await db.collection('Categories')
 
-    const data = await collection.insertOne(req.body)
+    const category = await categories.findOne({slug: req.body.category})
+
+    if (!category)
+      return res.status(406).send('Invalid category')
+
+    const data  = {
+      ...req.body,
+      category: category._id
+    }
+
+    if (data.image)
+      data.image = new ObjectId(data.image)
+
+    const { insertedId } = await products.insertOne(data)
   
-    res.status(201).send(await collection.findOne({_id: data.insertedId}))
+    res.status(201).send(insertedId)
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
@@ -38,18 +69,59 @@ productRouter.post('/', checkJwt, async function(req, res) {
 
 })
 
+productRouter.put('/:id', checkJwt, async function(req, res) {
+  try {
+    const _id = new ObjectId(req.params.id)
+    const client = await clientPromise
+    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const products = await db.collection('Products')
+
+    const categories = await db.collection('Categories')
+    const category = await categories.findOne({slug: req.body.category})
+    
+    if (!category)
+      return res.status(406).send('Invalid category')
+
+    const data = {
+      ...req.body,
+      category: category._id
+    }
+    
+    await products.findOneAndReplace({_id}, data)
+
+    res.sendStatus(200)
+
+  } catch (err) {
+    console.error(req.method, req.originalUrl, err)
+    res.sendStatus(500)
+  }
+})
+
 productRouter.patch('/:id', checkJwt, async function(req, res) {
   try {
-    const id = new ObjectId(req.params.id)
+    const _id = new ObjectId(req.params.id)
     const client = await clientPromise
-    const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
-
-    const data = {...req.body}
-    if (data.image) data.image = new ObjectId(data.image)
-
-    await collection.findOneAndUpdate({_id: id}, {$set: data})
+    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const products = await db.collection('Products')
     
-    res.status(200).send(await collection.findOne({_id: id}))
+    const data = {...req.body}
+
+    if (data.category) {
+      const categories = await db.collection('Categories')
+      const category = await categories.findOne({slug: data.category})
+    
+      if (!category)
+        return res.status(406).send('Invalid category')
+
+      data.category = category._id
+    }
+
+    if (data.image)
+      data.image = new ObjectId(data.image)
+
+    await products.findOneAndUpdate({_id}, {$set: data})
+    
+    res.sendStatus(200)
 
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
@@ -59,13 +131,13 @@ productRouter.patch('/:id', checkJwt, async function(req, res) {
 
 productRouter.delete('/:id', checkJwt, async function(req, res) {
   try {
-    const id = new ObjectId(req.params.id)
+    const _id = new ObjectId(req.params.id)
     const client = await clientPromise
     const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
     
-    await collection.deleteOne({_id: id})
+    await collection.deleteOne({_id})
     
-    res.sendStatus(204)
+    res.sendStatus(200)
     
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
