@@ -1,13 +1,12 @@
 import { Router } from 'express'
 
-import { clientPromise } from '../database'
+import { dbPromise } from '../database'
 
 const productsRouter = Router()
 
 productsRouter.get('/', async function(req, res) {
   try {
-    const client = await clientPromise
-    const db = client.db(process.env.MONGODB_DB_NAME) 
+    const db = await dbPromise
     const products = await db.collection('Products').find().toArray()
     const categories = await db.collection('Categories')
 

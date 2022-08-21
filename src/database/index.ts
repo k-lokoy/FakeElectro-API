@@ -5,5 +5,6 @@ if (!process.env.MONGODB_CONNECTION_STRING)
 
 const client = new MongoClient(process.env.MONGODB_CONNECTION_STRING)
 const clientPromise = client.connect()
+const dbPromise = clientPromise.then(client => client.db(process.env.MONGODB_DB_NAME))
 
-export { client, clientPromise }
+export { clientPromise, dbPromise }

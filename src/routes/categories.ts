@@ -1,13 +1,13 @@
 import { Router } from 'express'
 
-import { clientPromise } from '../database'
+import { dbPromise } from '../database'
 
 const categoriesRouter = Router()
 
 categoriesRouter.get('/', async function(req, res) {
   try {
-    const client = await clientPromise
-    const categories = await client.db(process.env.MONGODB_DB_NAME).collection('Categories').find().toArray()
+    const db = await dbPromise
+    const categories = await db.collection('Categories').find().toArray()
 
     res.status(200).send(categories.map(({ slug, name }) => ({slug, name})))
   

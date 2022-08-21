@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { ObjectId } from 'mongodb'
 import jwtAuthz from 'express-jwt-authz'
 
-import { clientPromise } from '../database'
+import { dbPromise } from '../database'
 import checkJwt from '../middleware/checkJwt'
 
 const productRouter = Router()
@@ -10,8 +10,7 @@ const productRouter = Router()
 productRouter.get('/:id', async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
-    const client = await clientPromise
-    const db = client.db(process.env.MONGODB_DB_NAME) 
+    const db = await dbPromise
     const product = await db.collection('Products').findOne({_id})
 
     if (!product) return res.sendStatus(404)
@@ -41,8 +40,7 @@ productRouter.get('/:id', async function(req, res) {
 
 productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
-    const client = await clientPromise
-    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const db = await dbPromise
     const products = await db.collection('Products')
     const categories = await db.collection('Categories')
 
@@ -73,8 +71,7 @@ productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: '
 productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
-    const client = await clientPromise
-    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const db = await dbPromise
     const products = await db.collection('Products')
 
     const categories = await db.collection('Categories')
@@ -101,8 +98,7 @@ productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey:
 productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
-    const client = await clientPromise
-    const db = await client.db(process.env.MONGODB_DB_NAME)
+    const db = await dbPromise
     const products = await db.collection('Products')
     
     const data = {...req.body}
@@ -133,8 +129,8 @@ productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKe
 productRouter.delete('/:id', checkJwt, jwtAuthz(['delete:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
-    const client = await clientPromise
-    const collection = await client.db(process.env.MONGODB_DB_NAME).collection('Products')
+    const db = await dbPromise
+    const collection = await db.collection('Products')
     
     await collection.deleteOne({_id})
     
