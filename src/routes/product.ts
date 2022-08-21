@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { ObjectId } from 'mongodb'
+import jwtAuthz from 'express-jwt-authz'
 
 import { clientPromise } from '../database'
 import checkJwt from '../middleware/checkJwt'
@@ -38,7 +39,7 @@ productRouter.get('/:id', async function(req, res) {
   }
 })
 
-productRouter.post('/', checkJwt, async function(req, res) {
+productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const client = await clientPromise
     const db = await client.db(process.env.MONGODB_DB_NAME)
@@ -69,7 +70,7 @@ productRouter.post('/', checkJwt, async function(req, res) {
 
 })
 
-productRouter.put('/:id', checkJwt, async function(req, res) {
+productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
     const client = await clientPromise
@@ -97,7 +98,7 @@ productRouter.put('/:id', checkJwt, async function(req, res) {
   }
 })
 
-productRouter.patch('/:id', checkJwt, async function(req, res) {
+productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
     const client = await clientPromise
@@ -129,7 +130,7 @@ productRouter.patch('/:id', checkJwt, async function(req, res) {
   }
 })
 
-productRouter.delete('/:id', checkJwt, async function(req, res) {
+productRouter.delete('/:id', checkJwt, jwtAuthz(['delete:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
     const client = await clientPromise

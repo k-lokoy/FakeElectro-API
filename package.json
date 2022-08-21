@@ -25,6 +25,7 @@
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "express-jwt": "^6.1.2",
+    "express-jwt-authz": "^2.4.1",
     "express-openid-connect": "^2.8.0",
     "jwks-rsa": "^2.1.4",
     "mongodb": "^4.8.1",

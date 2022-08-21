@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { GridFSBucket, ObjectId } from 'mongodb'
+import jwtAuthz from 'express-jwt-authz'
 
 import { clientPromise } from '../database'
 import checkJwt from '../middleware/checkJwt'
@@ -25,7 +26,7 @@ imgRouter.get('/:id', async function(req, res) {
   }
 })
 
-imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(req, res) {
+imgRouter.post('/', checkJwt, jwtAuthz(['write:image'], {customScopeKey: 'permissions'}), uploadMiddleware.single('file'), async function(req, res) {
   try {
     const file: any = req.file
 
@@ -40,7 +41,7 @@ imgRouter.post('/', checkJwt, uploadMiddleware.single('file'), async function(re
   }
 })
 
-imgRouter.delete('/:id', checkJwt, async function(req, res) {
+imgRouter.delete('/:id', checkJwt, jwtAuthz(['delete:image'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const id = new ObjectId(req.params.id.split('.')?.[0])
     const client = await clientPromise
