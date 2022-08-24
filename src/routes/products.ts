@@ -8,9 +8,9 @@ productsRouter.get('/', async function(req, res) {
   try {
     const db = await getDb()
     const products = await db.collection('Products').find().toArray()
-    const categories = await db.collection('Categories')
-
-    res.status(200).send(await Promise.all(products.map(async product => {
+    const categories = db.collection('Categories')
+    
+    const _products = await Promise.all(products.map(async product => {
       const category = await categories.findOne({_id: product.category})
 
       const data: any = {
@@ -22,10 +22,12 @@ productsRouter.get('/', async function(req, res) {
       }
 
       if (data.image)
-        data.image = `http${req.secure ? 's' : ''}://${req.get('host')}/img/${product.image}.jpg`
+        data.image = `${req.protocol}://${req.get('host')}/img/${product.image}.jpg`
 
       return data
-    })))
+    }))
+
+    res.status(200).send(_products)
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)

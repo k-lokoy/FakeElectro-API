@@ -1,5 +1,18 @@
 /** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
+const { defaults: tsjPreset } = require('ts-jest/presets')
+
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-};
+    preset: "@shelf/jest-mongodb",
+    transform: tsjPreset.transform,
+    testMatch: [
+      "**/?(*.)+(test).ts"
+    ],
+    modulePathIgnorePatterns: [
+      "src/index.ts"
+    ],
+    collectCoverage: true,
+    resetMocks: true,
+    clearMocks: true,
+    watchPathIgnorePatterns: ['globalConfig'],
+    forceExit: true
+}

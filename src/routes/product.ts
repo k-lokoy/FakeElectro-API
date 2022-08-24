@@ -15,7 +15,7 @@ productRouter.get('/:id', async function(req, res) {
 
     if (!product) return res.sendStatus(404)
 
-    const categories = await db.collection('Categories')
+    const categories = db.collection('Categories')
     const category = await categories.findOne({_id: product.category})
 
     const data: any = {
@@ -28,7 +28,7 @@ productRouter.get('/:id', async function(req, res) {
 
     if (product.image)
       data.image =
-        `http${req.secure ? 's' : ''}://${req.get('host')}/img/${product.image}.jpg`
+        `${req.protocol}://${req.get('host')}/img/${product.image}.jpg`
 
     res.status(200).send(data)
   
@@ -40,9 +40,9 @@ productRouter.get('/:id', async function(req, res) {
 
 productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
-    const products = await db.collection('Products')
-    const categories = await db.collection('Categories')
     const db = await getDb()
+    const products = db.collection('Products')
+    const categories = db.collection('Categories')
 
     const category = await categories.findOne({slug: req.body.category})
 
@@ -59,24 +59,26 @@ productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: '
 
     const { insertedId } = await products.insertOne(data)
   
-    res.status(201).send(insertedId)
+    res.status(201).send(insertedId.toString())
   
   } catch (err) {
     console.error(req.method, req.originalUrl, err)
     res.sendStatus(500)
   }
-
 })
 
 productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const products = await db.collection('Products')
-
-    const categories = await db.collection('Categories')
-    const category = await categories.findOne({slug: req.body.category})
+    const products = db.collection('Products')
+    const categories = db.collection('Categories')
     
+    const existingEntry = await products.findOne({_id})
+    if (!existingEntry)
+      return res.sendStatus(404)
+
+    const category = await categories.findOne({slug: req.body.category})
     if (!category)
       return res.status(406).send('Invalid category')
 
@@ -86,7 +88,7 @@ productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey:
     }
     
     await products.findOneAndReplace({_id}, data)
-
+    
     res.sendStatus(200)
 
   } catch (err) {
@@ -99,12 +101,16 @@ productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKe
   try {
     const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const products = await db.collection('Products')
+    const products = db.collection('Products')
+
+    const existingEntry = await products.findOne({_id})
+    if (!existingEntry)
+      return res.sendStatus(404)
     
     const data = {...req.body}
 
     if (data.category) {
-      const categories = await db.collection('Categories')
+      const categories = db.collection('Categories')
       const category = await categories.findOne({slug: data.category})
     
       if (!category)
@@ -130,7 +136,11 @@ productRouter.delete('/:id', checkJwt, jwtAuthz(['delete:product'], {customScope
   try {
     const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const collection = await db.collection('Products')
+    const collection = db.collection('Products')
+
+    const existingEntry = await collection.findOne({_id})
+    if (!existingEntry)
+      return res.sendStatus(404)
     
     await collection.deleteOne({_id})
     
