@@ -1,12 +1,12 @@
 import { Router } from 'express'
 
-import { dbPromise } from '../database'
+import { getDb } from '../database'
 
 const productsRouter = Router()
 
 productsRouter.get('/', async function(req, res) {
   try {
-    const db = await dbPromise
+    const db = await getDb()
     const products = await db.collection('Products').find().toArray()
     const categories = await db.collection('Categories')
 

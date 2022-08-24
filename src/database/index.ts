@@ -1,10 +1,25 @@
-import { MongoClient } from 'mongodb'
+import { Db, MongoClient } from 'mongodb'
 
-if (!process.env.MONGODB_CONNECTION_STRING)
+if ('test' !== process.env.NODE_ENV && !process.env.MONGODB_CONNECTION_STRING)
   throw new Error('Missing database connection string.')
 
-const client = new MongoClient(process.env.MONGODB_CONNECTION_STRING)
-const clientPromise = client.connect()
-const dbPromise = clientPromise.then(client => client.db(process.env.MONGODB_DB_NAME))
+export const client = new MongoClient(
+  'test' === process.env.NODE_ENV
+    ? global.__MONGO_URI__
+    : process.env.MONGODB_CONNECTION_STRING
+)
 
-export { clientPromise, dbPromise }
+let db: Db
+export async function getDb() {
+  if (db) return db
+
+  const connectedClient = await client.connect()
+  
+  db = connectedClient.db(
+    'test' === process.env.NODE_ENV
+    ? globalThis.__MONGO_DB_NAME__
+    : process.env.MONGODB_DB_NAME
+  )
+
+  return db
+}

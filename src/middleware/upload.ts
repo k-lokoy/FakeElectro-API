@@ -1,11 +1,11 @@
 import multer from 'multer'
 import { GridFsStorage } from 'multer-gridfs-storage'
 
-import { dbPromise } from '../database'
+import { getDb } from '../database'
 
 const storage = new GridFsStorage({
   url: process.env.MONGODB_CONNECTION_STRING,
-  db: dbPromise,
+  db: getDb(),
   options: {
     useNewUrlParser: true,
     useUnifiedTopology: true

@@ -2,15 +2,15 @@ import { Router } from 'express'
 import { ObjectId } from 'mongodb'
 import jwtAuthz from 'express-jwt-authz'
 
-import { dbPromise } from '../database'
+import { getDb } from '../database'
 import checkJwt from '../middleware/checkJwt'
 
 const productRouter = Router()
 
 productRouter.get('/:id', async function(req, res) {
   try {
+    const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const db = await dbPromise
     const product = await db.collection('Products').findOne({_id})
 
     if (!product) return res.sendStatus(404)
@@ -40,9 +40,9 @@ productRouter.get('/:id', async function(req, res) {
 
 productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
-    const db = await dbPromise
     const products = await db.collection('Products')
     const categories = await db.collection('Categories')
+    const db = await getDb()
 
     const category = await categories.findOne({slug: req.body.category})
 
@@ -70,8 +70,8 @@ productRouter.post('/', checkJwt, jwtAuthz(['write:product'], {customScopeKey: '
 
 productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
+    const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const db = await dbPromise
     const products = await db.collection('Products')
 
     const categories = await db.collection('Categories')
@@ -97,8 +97,8 @@ productRouter.put('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey:
 
 productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
+    const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const db = await dbPromise
     const products = await db.collection('Products')
     
     const data = {...req.body}
@@ -128,8 +128,8 @@ productRouter.patch('/:id', checkJwt, jwtAuthz(['write:product'], {customScopeKe
 
 productRouter.delete('/:id', checkJwt, jwtAuthz(['delete:product'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
+    const db = await getDb()
     const _id = new ObjectId(req.params.id)
-    const db = await dbPromise
     const collection = await db.collection('Products')
     
     await collection.deleteOne({_id})
