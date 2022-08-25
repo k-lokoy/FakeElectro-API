@@ -4,9 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "npx ts-node src/index.ts",
-    "build": "npx tsc --outDir dist --esModuleInterop src/index.ts",
+    "start": "npx vercel dev",
     "test": "npx jest --maxWorkers=1 tests",
     "test:watch": "npx jest --maxWorkers=1 --watch tests"
   },
@@ -34,7 +32,8 @@
     "multer": "^1.4.4",
     "multer-gridfs-storage": "^5.0.2",
     "ts-node": "^10.9.1",
-    "typescript": "^4.7.4"
+    "typescript": "^4.7.4",
+    "vercel": "^28.1.4"
   },
   "devDependencies": {
     "@shelf/jest-mongodb": "^4.1.0",
