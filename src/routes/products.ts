@@ -21,8 +21,10 @@ productsRouter.get('/', async function(req, res) {
         }
       }
 
-      if (data.image)
-        data.image = `${req.protocol}://${req.get('host')}/img/${product.image}.jpg`
+      if (data.image) {
+        const port: string = process.env.PORT || '8080'
+        data.image = `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/img/${product.image}.jpg`
+      }
 
       return data
     }))
