@@ -21,5 +21,5 @@ app.use('/product', productRouter)
 app.use('/categories', categoriesRouter)
 app.use('/img', imgRouter)
 
-const port = process.env.PORT || 3000
+const port: string = process.env.PORT || '8080'
 app.listen(port, () => console.log(`API listening on port ${port}`))
