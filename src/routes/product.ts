@@ -27,8 +27,15 @@ productRouter.get('/:id', async function(req, res) {
     }
 
     if (product.image) {
-      const port: string = process.env.PORT || '8080'
-      data.image = `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/img/${product.image}.jpg`
+      const image = await db.collection('images.files').findOne({_id: product.image})
+      const { PORT } = process.env
+      const port = !PORT || ['8080', '80'].includes(PORT) ? '' : `:${PORT}`
+      const ext = image.contentType.match(/\/(.*)/)?.[1] || 'jpg'
+
+      data.image = {
+        _id: image._id,
+        url: `${req.protocol}://${req.hostname}${port}/image/${image._id}.${ext}`
+      }
     }
 
     res.status(200).send(data)

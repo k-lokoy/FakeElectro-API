@@ -25,7 +25,10 @@ categoryRouter.get('/:slug', async function(req, res) {
 
       if (data.image) {
         const port: string = process.env.PORT || '8080'
-        data.image = `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/img/${product.image}.jpg`
+        data.image = {
+          _id: product.image,
+          url: `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/image/${product.image}.jpg`
+        }
       }
 
       return data

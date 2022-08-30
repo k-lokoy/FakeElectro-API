@@ -6,9 +6,9 @@ import { getDb } from '../database'
 import checkJwt from '../middleware/checkJwt'
 import uploadMiddleware from '../middleware/upload'
 
-const imgRouter = Router()
+const imageRouter = Router()
 
-imgRouter.get('/:id', async function(req, res) {
+imageRouter.get('/:id', async function(req, res) {
   try {
     const db = await getDb()
     const id = new ObjectId(req.params.id.split('.')?.[0])
@@ -25,7 +25,7 @@ imgRouter.get('/:id', async function(req, res) {
   }
 })
 
-imgRouter.post('/', checkJwt, jwtAuthz(['write:image'], {customScopeKey: 'permissions'}), uploadMiddleware.single('file'), async function(req, res) {
+imageRouter.post('/', checkJwt, jwtAuthz(['write:image'], {customScopeKey: 'permissions'}), uploadMiddleware.single('file'), async function(req, res) {
   try {
     const file: any = req.file
 
@@ -40,7 +40,7 @@ imgRouter.post('/', checkJwt, jwtAuthz(['write:image'], {customScopeKey: 'permis
   }
 })
 
-imgRouter.delete('/:id', checkJwt, jwtAuthz(['delete:image'], {customScopeKey: 'permissions'}), async function(req, res) {
+imageRouter.delete('/:id', checkJwt, jwtAuthz(['delete:image'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
     const db = await getDb()
     const id = new ObjectId(req.params.id.split('.')?.[0])
@@ -56,4 +56,4 @@ imgRouter.delete('/:id', checkJwt, jwtAuthz(['delete:image'], {customScopeKey: '
   }
 })
 
-export default imgRouter
+export default imageRouter

@@ -27,49 +27,59 @@ const jwtAuthzMocked: any = jest.mocked(jwtAuthz)
 describe('routes/product', function() {
   let app: Express
   let db: Db
-  let categories: Collection<Document>
-  let products: Collection<Document>
-  const productIds = []
-  const imageId = new ObjectId()
+  let categoriesCollection: Collection<Document>
+  let imagesCollection: Collection<Document>
+  let productsCollection: Collection<Document>
   
   beforeAll(async function() {
     db = await getDb()
     app = express()
+
     app.use(bodyParser.json())
     app.use(bodyParser.urlencoded({extended: true}))
-    categories = db.collection('Categories')
-    products = db.collection('Products')
-    
     app.use('/product', productRouter)
+    
+    // Insert categories
+    categoriesCollection = db.collection('Categories')
+    await Promise.all([
+      categoriesCollection.insertOne({slug: 'foo', name: 'Foo'}),
+      categoriesCollection.insertOne({slug: 'bar', name: 'Bar'}),
+    ])
 
-    const { insertedId: categoryId1 } = await categories.insertOne({slug: 'foo', name: 'Foo'})
-    const { insertedId: categoryId2 } = await categories.insertOne({slug: 'bar', name: 'Bar'})
-    const { insertedId: productId1 } = await products.insertOne({
-      name: 'The first product',
-      category: categoryId1,
-      description: 'Description about the first product.',
-      price: 55.5,
-      in_stock: 12,
-      image: imageId,
-      rating: {
-        rate: 5,
-        count: 99
-      },
-    })
-    const { insertedId: productId2 } = await products.insertOne({
-      name: 'The second product',
-      category: categoryId2,
-      description: 'Description about the second product.',
-      price: 100,
-      in_stock: 0,
-      rating: {
-        rate: 3,
-        count: 4
-      },
-    })
+    // Insert images
+    imagesCollection = db.collection('images.files')
+    await Promise.all([
+      imagesCollection.insertOne({filename: 'foobar.jpg', contentType: 'images/jpeg'}),
+      imagesCollection.insertOne({filename: 'foobaz.png', contentType: 'images/png'}),
+    ])
 
-    productIds.push(productId1)
-    productIds.push(productId2)
+    // Insert products
+    productsCollection = db.collection('Products')
+    await Promise.all([
+      productsCollection.insertOne({
+        name: 'The first product',
+        category: (await categoriesCollection.findOne({slug: 'foo'}))._id,
+        description: 'Description about the first product.',
+        price: 55.5,
+        in_stock: 12,
+        image: (await imagesCollection.findOne({filename: 'foobar.jpg'}))._id,
+        rating: {
+          rate: 5,
+          count: 99
+        }
+      }),
+      productsCollection.insertOne({
+        name: 'The second product',
+        category: (await categoriesCollection.findOne({slug: 'bar'}))._id,
+        description: 'Description about the second product.',
+        price: 100,
+        in_stock: 0,
+        rating: {
+          rate: 3,
+          count: 4
+        },
+      })
+    ])
     
     jest.spyOn(console, 'error')
   })
@@ -80,13 +90,19 @@ describe('routes/product', function() {
   })
 
   describe('GET', function() {
+    let target: Document
+
+    beforeAll(async function() {
+      target = await productsCollection.findOne({name: 'The first product'})
+    })
+    
     it('Should respond with a product', async function() {
-      const res: any  = await supertest(app).get(`/product/${productIds[0].toString()}`)
+      const res: any = await supertest(app).get(`/product/${target._id.toString()}`)
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(200)
       expect(JSON.parse(res.text)).toEqual({
-        _id: productIds[0].toString(),
+        _id: target._id.toString(),
         name: 'The first product',
         category: {
           slug: 'foo',
@@ -95,7 +111,7 @@ describe('routes/product', function() {
         description: 'Description about the first product.',
         price: 55.5,
         in_stock: 12,
-        image: `${res.request.protocol}//${res.req.host}/img/${imageId.toString()}.jpg`,
+        image: `${res.request.protocol}//${res.req.host}/image/${target.image.toString()}.jpeg`,
         rating: {
           rate: 5,
           count: 99
@@ -109,7 +125,7 @@ describe('routes/product', function() {
       const err = new Error('Error message')
       collectionSpy.mockImplementation(() => { throw err })
 
-      const uri = `/product/${productIds[0].toString()}`
+      const uri = `/product/${target._id.toString()}`
       const res: any  = await supertest(app).get(uri)
 
       expect(console.error).toHaveBeenCalledWith('GET', uri, err)
@@ -120,39 +136,42 @@ describe('routes/product', function() {
   })
 
   describe('POST', function() {
-    let imageId: ObjectId
+    let image: Document
     let body: any
 
-    beforeAll(function() {
-      imageId = new ObjectId()
+    beforeAll(async function() {
+      image = await imagesCollection.findOne({filename: 'foobaz.png'})
+
       body = {
         foo: 'bar',
         category: 'foo',
-        image: imageId
+        image: image._id.toString()
       }
     })
 
     it('Should add a product to the database', async function() {
-      const res =
+      const res: any =
         await supertest(app)
           .post('/product')
           .send(body)
           .set('Content-Type', 'application/json')
+  
+      const product = await productsCollection.findOne({_id: new ObjectId(res.text)})
       
-      const table = await products.find().toArray()
-      const target = table[table.length - 1]
-
       expect(console.error).not.toHaveBeenCalled()
       
-      expect(target).toEqual({
-        _id: expect.anything(),
-        category: (await categories.find().toArray())[0]._id,
-        image: imageId,
+      expect(product).toEqual({
+        _id: new ObjectId(res.text),
+        category: (await categoriesCollection.findOne({slug: 'foo'}))._id,
+        image: {
+          _id: image._id,
+          url: `${res.request.protocol}//${res.req.host}/image/${image._id}.jpg`
+        },
         foo: 'bar'
       })
 
       expect(res.status).toEqual(201)
-      expect(res.text).toEqual(target._id.toString())
+      expect(res.text).toEqual(product._id.toString())
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
@@ -164,7 +183,7 @@ describe('routes/product', function() {
           .send(body)
           .set('Content-Type', 'application/json')
 
-      const table = await products.find().toArray()
+      const table = await productsCollection.find().toArray()
 
       expect(table.length).toEqual(3)
       expect(res.status).toEqual(406)
@@ -215,37 +234,31 @@ describe('routes/product', function() {
   })
 
   describe('PUT', function() {
-    let body: any
-    let cats: any[]
-    let cat: any
-    
-    beforeAll(async function() {
-      cats = await categories.find().toArray()
-      cat  = cats[cats.length - 1]
+    let target: Document
 
-      body = {
-        bar: 'qux',
-        category: cat.slug
-      }
+    beforeEach(async function() {
+      target = await productsCollection.findOne({name: 'The first product'})
     })
     
     it('should replace a database entry', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-
       const res =
         await supertest(app)
           .put(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({
+            name: target.name,
+            bar: 'qux',
+            category: 'bar'
+          })
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(200)
 
-      expect(await products.findOne({_id: target._id})).toEqual({
-        _id: expect.anything(),
+      expect(await productsCollection.findOne({_id: target._id})).toEqual({
+        _id: target._id,
+        name: target.name,
         bar: 'qux',
-        category: cat._id
+        category: (await categoriesCollection.findOne({slug: 'bar'}))._id
       })
     })
 
@@ -255,7 +268,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .put(`/product/${randomId.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -263,14 +276,10 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-      body.category = 'invalid'
-
       const res =
         await supertest(app)
           .put(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({category: 'invalid'})
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -279,38 +288,30 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 401 status code if the token is invalid', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-    
       checkJwlMocked.mockImplementation((req, res, next) => res.sendStatus(401))
 
       const res =
         await supertest(app)
           .put(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
       
       expect(res.status).toEqual(401)
     })
 
     it('should respond with a 401 status code if the token does not relate to an authorized role', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-
       jwtAuthzMocked.jwtAuthzHandler.mockImplementation((req, res, next) => res.sendStatus(401))
       
       const res =
         await supertest(app)
           .put(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
     
       expect(res.status).toEqual(401)
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
       const collectionSpy = jest.spyOn(db, 'collection')
       const err = new Error('Error message')
       const uri = `/product/${target._id.toString()}`
@@ -320,7 +321,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .put(uri)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
 
       expect(console.error).toHaveBeenCalledWith('PUT', uri, err)
@@ -331,38 +332,36 @@ describe('routes/product', function() {
   })
   
   describe('PATCH', function() {
-    let body: any
-    
+    let target: Document
+
     beforeEach(async function() {
-      body = {
-        baz: 'quux'
-      }
+      target = await productsCollection.findOne({name: 'The first product'})
     })
 
     it('Should add and replace data to an entry', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-      const category = await categories.findOne({slug: 'foo'})
+      const category = await categoriesCollection.findOne({slug: 'foo'})
       const imageId = new ObjectId()
-
-      body.category = 'foo'
-      body.image    = imageId.toString()
 
       const res =
         await supertest(app)
           .patch(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({
+            category: 'foo',
+            image: imageId.toString(),
+            baz: 'quux'
+          })
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toBeCalled()
       expect(res.status).toEqual(200)
       
-      expect(await products.findOne({_id: target._id})).toEqual({
+      expect(await productsCollection.findOne({_id: target._id})).toEqual({
         _id: target._id,
+        name: target.name,
         category: category._id,
         bar: 'qux',
         baz: 'quux',
-        image: imageId
+        image: imageId,
       })
     })
 
@@ -372,7 +371,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .patch(`/product/${randomId.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -380,14 +379,10 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-      body.category = 'invalid'
-
       const res =
         await supertest(app)
           .patch(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({category: 'invalid'})
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -396,38 +391,30 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 401 status code if the token is invalid', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-    
       checkJwlMocked.mockImplementation((req, res, next) => res.sendStatus(401))
 
       const res =
         await supertest(app)
           .patch(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
       
       expect(res.status).toEqual(401)
     })
 
     it('should respond with a 401 status code if the token does not relate to an authorized role', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-
       jwtAuthzMocked.jwtAuthzHandler.mockImplementation((req, res, next) => res.sendStatus(401))
       
       const res =
         await supertest(app)
           .patch(`/product/${target._id.toString()}`)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
     
       expect(res.status).toEqual(401)
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
       const collectionSpy = jest.spyOn(db, 'collection')
       const err = new Error('Error message')
       const uri = `/product/${target._id.toString()}`
@@ -437,7 +424,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .patch(uri)
-          .send(body)
+          .send({})
           .set('Content-Type', 'application/json')
 
       expect(console.error).toHaveBeenCalledWith('PATCH', uri, err)
@@ -448,40 +435,21 @@ describe('routes/product', function() {
   })
 
   describe('DELETE', function() {
-    let expectedProducts: any[]
+    let target: Document
+    let expectedProducts: Document[]
 
     beforeAll(async function() {
-      expectedProducts = [
-        {
-          _id: expect.anything(),
-          category: (await categories.findOne({slug: 'bar'}))._id,
-          description: 'Description about the second product.',
-          in_stock: 0,
-          name: 'The second product',
-          price: 100,
-          rating: {
-            count: 4,
-            rate: 3,
-          },
-        },
-        {
-          _id: expect.anything(),
-          category: (await categories.findOne({slug: 'foo'}))._id,
-          foo: 'bar',
-          image: expect.anything(),
-        }
-      ]
+      target = await productsCollection.findOne({name: 'The first product'})
+      const products = await productsCollection.find({}).toArray()
+      expectedProducts = products.filter(product => product._id.toString() !== target._id.toString())
     })
-    
-    it('Should delete an entry', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-      
+
+    it('Should delete an entry', async function() {      
       const res = await supertest(app).delete(`/product/${target._id.toString()}`)
 
       expect(console.error).not.toBeCalled()
       expect(res.status).toEqual(200)
-      expect(await products.find().toArray()).toEqual(expectedProducts)
+      expect(await productsCollection.find().toArray()).toEqual(expectedProducts)
     })
 
     it('Should respond with a 404 status code if the entry does not exist', async function() {
@@ -494,9 +462,6 @@ describe('routes/product', function() {
     })
     
     it('Should respond with a 401 status code if the token is invalid', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-    
       checkJwlMocked.mockImplementation((req, res, next) => res.sendStatus(401))
 
       const res = await supertest(app).delete(`/product/${target._id.toString()}`)
@@ -505,9 +470,6 @@ describe('routes/product', function() {
     })
 
     it('should respond with a 401 status code if the token does not relate to an authorized role', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
-
       jwtAuthzMocked.jwtAuthzHandler.mockImplementation((req, res, next) => res.sendStatus(401))
       
       const res = await supertest(app).delete(`/product/${target._id.toString()}`)
@@ -516,8 +478,6 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const table = await products.find().toArray()
-      const target = table[0]
       const collectionSpy = jest.spyOn(db, 'collection')
       const err = new Error('Error message')
       const uri = `/product/${target._id.toString()}`

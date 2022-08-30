@@ -64,7 +64,10 @@ describe('routes/products', function() {
           description: 'Description about the product.',
           price: 55.5,
           in_stock: 12,
-          image: `${res.request.protocol}//${res.req.host}/img/${imageId.toString()}.jpg`,
+          image: {
+            _id: imageId.toString(),
+            url: `${res.request.protocol}//${res.req.host}/image/${imageId}.jpg`,
+          },
           rating: {
             rate: 5,
             count: 99
