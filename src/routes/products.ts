@@ -1,6 +1,7 @@
 import { Router } from 'express'
 
 import { getDb } from '../database'
+import getURLFromRequest from '../utils/getURLFromRequest'
 
 const productsRouter = Router()
 
@@ -22,10 +23,9 @@ productsRouter.get('/', async function(req, res) {
       }
 
       if (data.image) {
-        const port: string = process.env.PORT || '8080'
         data.image = {
           _id: product.image,
-          url: `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/image/${product.image}.jpg`
+          url: `${getURLFromRequest(req)}/image/${product.image}.jpg`
         }
       }
 

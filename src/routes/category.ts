@@ -1,5 +1,6 @@
 import { Router } from 'express'
 
+import getURLFromRequest from '../utils/getURLFromRequest'
 import { getDb } from '../database'
 
 const categoryRouter = Router()
@@ -24,10 +25,9 @@ categoryRouter.get('/:slug', async function(req, res) {
       }
 
       if (data.image) {
-        const port: string = process.env.PORT || '8080'
         data.image = {
           _id: product.image,
-          url: `${req.protocol}://${req.hostname}${'8080' !== port ? ':'+port : ''}/image/${product.image}.jpg`
+          url: `${getURLFromRequest(req)}/image/${product.image}.jpg`
         }
       }
 
