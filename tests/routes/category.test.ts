@@ -31,11 +31,11 @@ describe('routes/category', function() {
       categories.insertOne({slug: 'category-3', name: 'Category 3'}),
     ])
 
-    insertedProducts = await Promise.all([
-      products.insertOne({name: 'Product 1', category: insertedCategories[0].insertedId}),
-      products.insertOne({name: 'Product 2', category: insertedCategories[0].insertedId}),
-      products.insertOne({name: 'Product 3', category: insertedCategories[1].insertedId}),
-    ])
+    insertedProducts = [
+      await products.insertOne({name: 'Product 1', category: insertedCategories[0].insertedId}),
+      await products.insertOne({name: 'Product 2', category: insertedCategories[0].insertedId}),
+      await products.insertOne({name: 'Product 3', category: insertedCategories[1].insertedId}),
+    ]
 
     jest.spyOn(console, 'error')
   })
