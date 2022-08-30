@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx vercel dev",
+    "start": "npx vercel dev --listen 3001",
     "test": "npx jest tests",
     "test:watch": "npx jest --watch tests"
   },
