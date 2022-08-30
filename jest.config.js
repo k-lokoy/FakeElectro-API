@@ -14,5 +14,7 @@ module.exports = {
     resetMocks: true,
     clearMocks: true,
     watchPathIgnorePatterns: ['globalConfig'],
-    forceExit: true
+    forceExit: true,
+    verbose: true,
+    maxWorkers: 1
 }

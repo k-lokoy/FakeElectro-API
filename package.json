@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "npx vercel dev",
-    "test": "npx jest --maxWorkers=1 tests",
-    "test:watch": "npx jest --maxWorkers=1 --watch tests"
+    "test": "npx jest tests",
+    "test:watch": "npx jest --watch tests"
   },
   "repository": {
     "type": "git",
