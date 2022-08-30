@@ -111,7 +111,10 @@ describe('routes/product', function() {
         description: 'Description about the first product.',
         price: 55.5,
         in_stock: 12,
-        image: `${res.request.protocol}//${res.req.host}/image/${target.image.toString()}.jpeg`,
+        image: {
+          _id: target.image.toString(),
+          url: `${res.request.protocol}//${res.req.host}/image/${target.image.toString()}.jpeg`
+        },
         rating: {
           rate: 5,
           count: 99
@@ -163,10 +166,7 @@ describe('routes/product', function() {
       expect(product).toEqual({
         _id: new ObjectId(res.text),
         category: (await categoriesCollection.findOne({slug: 'foo'}))._id,
-        image: {
-          _id: image._id,
-          url: `${res.request.protocol}//${res.req.host}/image/${image._id}.jpg`
-        },
+        image: image._id,
         foo: 'bar'
       })
 
