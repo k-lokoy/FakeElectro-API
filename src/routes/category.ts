@@ -2,6 +2,7 @@ import { Router } from 'express'
 
 import getURLFromRequest from '../utils/getURLFromRequest'
 import { getDb } from '../database'
+import generateImageDataForResponse from '../utils/generateImageDataForResponse'
 
 const categoryRouter = Router()
 
@@ -24,12 +25,11 @@ categoryRouter.get('/:slug', async function(req, res) {
         }
       }
 
-      if (data.image) {
-        data.image = {
-          _id: product.image,
-          url: `${getURLFromRequest(req)}/image/${product.image}.jpg`
-        }
-      }
+      if (product.image)
+        data.image = generateImageDataForResponse(
+          (await db.collection('images.files').findOne({_id: product.image})),
+          getURLFromRequest(req)
+        )
 
       return data
     })))

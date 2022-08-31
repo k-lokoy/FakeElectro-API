@@ -2,7 +2,7 @@ import supertest from 'supertest'
 import express from 'express'
 
 // Types
-import { Collection, Db, Document, InsertOneResult, ObjectId } from 'mongodb'
+import { Collection, Db, Document, InsertOneResult } from 'mongodb'
 import { Express } from 'express-serve-static-core'
 
 import { getDb } from '../../src/database'
@@ -11,10 +11,12 @@ import categoryRouter from '../../src/routes/category'
 describe('routes/category', function() {
   let app: Express
   let db: Db
+  let images: Collection<Document>
   let categories: Collection<Document>
   let products: Collection<Document>
   let insertedCategories: InsertOneResult<Document>[]
   let insertedProducts: InsertOneResult<Document>[]
+  let insertedImage: InsertOneResult<Document>
 
   beforeAll(async function() {
     app = express()
@@ -24,7 +26,10 @@ describe('routes/category', function() {
 
     categories = db.collection('Categories')
     products   = db.collection('Products')
+    images     = db.collection('images.files')
 
+    insertedImage = await images.insertOne({contentType: 'image/png'})
+    
     insertedCategories = await Promise.all([
       categories.insertOne({slug: 'category-1', name: 'Category 1'}),
       categories.insertOne({slug: 'category-2', name: 'Category 2'}),
@@ -33,7 +38,7 @@ describe('routes/category', function() {
 
     insertedProducts = [
       await products.insertOne({name: 'Product 1', category: insertedCategories[0].insertedId}),
-      await products.insertOne({name: 'Product 2', category: insertedCategories[0].insertedId}),
+      await products.insertOne({name: 'Product 2', category: insertedCategories[0].insertedId, image: insertedImage.insertedId}),
       await products.insertOne({name: 'Product 3', category: insertedCategories[1].insertedId}),
     ]
 
@@ -41,7 +46,7 @@ describe('routes/category', function() {
   })
 
   it('Should respond with an array of products in the category', async function() {
-    const res = await supertest(app).get('/category/category-1')
+    const res: any = await supertest(app).get('/category/category-1')
 
     expect(console.error).not.toHaveBeenCalled()
     expect(res.status).toEqual(200)
@@ -49,6 +54,7 @@ describe('routes/category', function() {
     const restult = JSON.parse(res.text)
     restult.sort((a, b) => b.name.localeCompare(a.name))
 
+    const imageId = insertedImage.insertedId.toString()
     expect(JSON.parse(res.text)).toEqual([
       {
         _id: insertedProducts[0].insertedId.toString(),
@@ -58,7 +64,11 @@ describe('routes/category', function() {
       {
         _id: insertedProducts[1].insertedId.toString(),
         name: 'Product 2',
-        category: {slug: 'category-1', name: 'Category 1'}
+        category: {slug: 'category-1', name: 'Category 1'},
+        image: {
+          _id: imageId,
+          url: `${res.request.protocol}//${res.req.host}/image/${imageId}.png`
+        }
       }
     ])
   })

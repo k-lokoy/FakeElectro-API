@@ -5,6 +5,7 @@ import jwtAuthz from 'express-jwt-authz'
 import { getDb } from '../database'
 import checkJwt from '../middleware/checkJwt'
 import getURLFromRequest from '../utils/getURLFromRequest'
+import generateImageDataForResponse from '../utils/generateImageDataForResponse'
 
 const productRouter = Router()
 
@@ -27,15 +28,11 @@ productRouter.get('/:id', async function(req, res) {
       }
     }
 
-    if (product.image) {
-      const image = await db.collection('images.files').findOne({_id: product.image})
-      const ext = image.contentType.match(/\/(.*)/)?.[1] || 'jpg'
-
-      data.image = {
-        _id: image._id,
-        url: `${getURLFromRequest(req)}/image/${image._id}.${ext}`
-      }
-    }
+    if (product.image)
+      data.image = generateImageDataForResponse(
+        (await db.collection('images.files').findOne({_id: product.image})),
+        getURLFromRequest(req)
+      )
 
     res.status(200).send(data)
   
