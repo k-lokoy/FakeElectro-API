@@ -1,29 +1,33 @@
 import supertest from 'supertest'
 import express from 'express'
-
-// Types
-import { Collection, Db, Document } from 'mongodb'
+import mongoose from 'mongoose'
+import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Express } from 'express-serve-static-core'
 
-import { getDb } from '../../src/database'
+import { Category } from '../../src/database'
 import categoriesRouter from '../../src/routes/categories'
 
 describe('routes/categories', function() {
-  let collection: Collection<Document>
   let app: Express
-  let db: Db
   
   beforeAll(async function() {
-    db = await getDb()
-    collection = db.collection('Categories')
+    const mongoServer = await MongoMemoryServer.create()
+
+    await mongoose.connect(mongoServer.getUri())
+
     app = express()
 
     app.use('/categories', categoriesRouter)
 
-    await collection.insertOne({slug: 'foo', name: 'Foo'})
-    await collection.insertOne({slug: 'bar', name: 'Bar'})
+    await Category.collection.insertOne({slug: 'foo', name: 'Foo'})
+    await Category.collection.insertOne({slug: 'bar', name: 'Bar'})
 
     jest.spyOn(console, 'error')
+  })
+
+  afterAll(async () => {
+    await mongoose.disconnect()
+    await mongoose.connection.close()
   })
 
   describe('GET', function() {
@@ -39,10 +43,10 @@ describe('routes/categories', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const findSpy = jest.spyOn(Category, 'find')
       
       const err = new Error('Error message')
-      collectionSpy.mockImplementation(() => { throw err })
+      findSpy.mockImplementation(() => { throw err })
 
       const res = await supertest(app).get('/categories')
 

@@ -1,46 +1,68 @@
 import supertest from 'supertest'
 import express from 'express'
-
-// Types
-import { Collection, Db, Document, InsertOneResult } from 'mongodb'
+import { InsertOneResult } from 'mongodb'
+import mongoose from 'mongoose'
+import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Express } from 'express-serve-static-core'
 
-import { getDb } from '../../src/database'
+import { Category, Product } from '../../src/database'
 import categoryRouter from '../../src/routes/category'
 
 describe('routes/category', function() {
   let app: Express
-  let db: Db
-  let images: Collection<Document>
-  let categories: Collection<Document>
-  let products: Collection<Document>
-  let insertedCategories: InsertOneResult<Document>[]
-  let insertedProducts: InsertOneResult<Document>[]
-  let insertedImage: InsertOneResult<Document>
+  let insertedProducts: Product[]
+  let insertedCategories: Category[]
+  let insertedImage: InsertOneResult<mongoose.AnyObject>
 
   beforeAll(async function() {
+    const mongoServer = await MongoMemoryServer.create()
     app = express()
-    db = await getDb()
 
+    await mongoose.connect(mongoServer.getUri())
+    
     app.use('/category', categoryRouter)
 
-    categories = db.collection('Categories')
-    products   = db.collection('Products')
-    images     = db.collection('images.files')
-
-    insertedImage = await images.insertOne({contentType: 'image/png'})
-    
-    insertedCategories = await Promise.all([
-      categories.insertOne({slug: 'category-1', name: 'Category 1'}),
-      categories.insertOne({slug: 'category-2', name: 'Category 2'}),
-      categories.insertOne({slug: 'category-3', name: 'Category 3'}),
+    insertedCategories = await Category.insertMany([
+      {slug: 'category-1', name: 'Category 1'},
+      {slug: 'category-2', name: 'Category 2'},
+      {slug: 'category-3', name: 'Category 3'},
     ])
 
-    insertedProducts = [
-      await products.insertOne({name: 'Product 1', category: insertedCategories[0].insertedId}),
-      await products.insertOne({name: 'Product 2', category: insertedCategories[0].insertedId, image: insertedImage.insertedId}),
-      await products.insertOne({name: 'Product 3', category: insertedCategories[1].insertedId}),
-    ]
+    insertedImage = await mongoose.connection.collection('images.files').insertOne({contentType: 'image/png'})
+
+    insertedProducts = await Product.insertMany([
+      {
+        name: 'Product 1',
+        category: insertedCategories[0]._id,
+        price: 100,
+        in_stock: 101,
+        rating: {
+          rate: 10,
+          count: 1
+        }
+      },
+      {
+        name: 'Product 2',
+        category: insertedCategories[0]._id,
+        image: insertedImage.insertedId,
+        price: 200,
+        in_stock: 201,
+        rating: {
+          rate: 20,
+          count: 2
+        }
+      },
+      {
+        name: 'Product 3',
+        category: insertedCategories[1]._id,
+        price: 300,
+        in_stock: 301,
+        rating: {
+          rate: 30,
+          count: 3
+        }
+      },
+    ])
 
     jest.spyOn(console, 'error')
   })
@@ -50,24 +72,41 @@ describe('routes/category', function() {
 
     expect(console.error).not.toHaveBeenCalled()
     expect(res.status).toEqual(200)
-
-    const restult = JSON.parse(res.text)
-    restult.sort((a, b) => b.name.localeCompare(a.name))
-
+    
     const imageId = insertedImage.insertedId.toString()
     expect(JSON.parse(res.text)).toEqual([
       {
-        _id: insertedProducts[0].insertedId.toString(),
+        _id: insertedProducts[0]._id.toString(),
         name: 'Product 1',
-        category: {slug: 'category-1', name: 'Category 1'}
+        description: '',
+        category: {
+          slug: 'category-1',
+          name: 'Category 1'
+        },
+        price: 100,
+        in_stock: 101,
+        rating: {
+          rate: 10,
+          count: 1
+        }
       },
       {
-        _id: insertedProducts[1].insertedId.toString(),
+        _id: insertedProducts[1]._id.toString(),
         name: 'Product 2',
-        category: {slug: 'category-1', name: 'Category 1'},
+        description: '',
+        category: {
+          slug: 'category-1',
+          name: 'Category 1'
+        },
         image: {
           _id: imageId,
           url: `${res.request.protocol}//${res.req.host}/image/${imageId}.png`
+        },
+        price: 200,
+        in_stock: 201,
+        rating: {
+          rate: 20,
+          count: 2
         }
       }
     ])
@@ -89,15 +128,14 @@ describe('routes/category', function() {
   })
 
   it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-    const collectionSpy = jest.spyOn(db, 'collection')
+    const findSpy = jest.spyOn(Product, 'find')
     
     const err = new Error('Error message')
-    collectionSpy.mockImplementation(() => { throw err })
+    findSpy.mockImplementation(() => { throw err })
 
     const res = await supertest(app).get('/category/category-1')
 
     expect(console.error).toHaveBeenCalledWith('GET', '/category/category-1', err)
     expect(res.status).toEqual(500)
   })
-
 })

@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { GridFSBucket, ObjectId } from 'mongodb'
+import mongoose from 'mongoose'
 import jwtAuthz from 'express-jwt-authz'
 
-import { getDb } from '../database'
 import checkJwt from '../middleware/checkJwt'
 import uploadMiddleware from '../middleware/upload'
 
@@ -10,9 +10,8 @@ const imageRouter = Router()
 
 imageRouter.get('/:id', async function(req, res) {
   try {
-    const db = await getDb()
     const id = new ObjectId(req.params.id.split('.')?.[0])
-    const bucket = new GridFSBucket(db, {bucketName: 'images'})
+    const bucket = new GridFSBucket(mongoose.connection.db, {bucketName: 'images'})
     const downloadStream = bucket.openDownloadStream(id)
     
     downloadStream.on('data',  (data) => res.status(200).write(data))
@@ -42,9 +41,8 @@ imageRouter.post('/', checkJwt, jwtAuthz(['write:image'], {customScopeKey: 'perm
 
 imageRouter.delete('/:id', checkJwt, jwtAuthz(['delete:image'], {customScopeKey: 'permissions'}), async function(req, res) {
   try {
-    const db = await getDb()
     const id = new ObjectId(req.params.id.split('.')?.[0])
-    const bucket = new GridFSBucket(db, {bucketName: 'images'})
+    const bucket = new GridFSBucket(mongoose.connection.db, {bucketName: 'images'})
 
     await bucket.delete(id)
         

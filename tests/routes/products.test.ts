@@ -1,35 +1,27 @@
 import supertest from 'supertest'
 import express from 'express'
-
-// Types
+import mongoose from 'mongoose'
+import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Express } from 'express-serve-static-core'
-import { Collection, Db, Document, InsertOneResult } from 'mongodb'
 
-import { getDb } from '../../src/database'
+import { Category, Product } from '../../src/database'
 import productsRouter from '../../src/routes/products'
 
 describe('routes/products', function() {
-  let db: Db
-  let images: Collection<Document>
-  let categories: Collection<Document>
-  let products: Collection<Document>
   let app: Express
-  let insertedImage: InsertOneResult<Document>
-  const productIds = []
-
+  let insertedImage: any
+  
   beforeAll(async function() {
-    db = await getDb()
-    images = db.collection('images.files')
-    categories = db.collection('Categories')
-    products = db.collection('Products')
+    const mongoServer = await MongoMemoryServer.create()
     app = express()
+
+    await mongoose.connect(mongoServer.getUri())
+
+    insertedImage = await mongoose.connection.collection('images.files').insertOne({contentType: 'images/png'})
+
+    const { insertedId: insertedCategoryId } = await Category.collection.insertOne({slug: 'foo', name: 'Foo'})
     
-    app.use('/products', productsRouter)
-
-    insertedImage = await images.insertOne({contentType: 'images/png'})
-
-    const { insertedId: insertedCategoryId } = await categories.insertOne({slug: 'foo', name: 'Foo'})
-    const { insertedId } = await products.insertOne({
+    await Product.collection.insertOne({
       name: 'the product',
       category: insertedCategoryId,
       description: 'Description about the product.',
@@ -42,9 +34,14 @@ describe('routes/products', function() {
       },
     })
 
-    productIds.push(insertedId)
+    app.use('/products', productsRouter)
     
     jest.spyOn(console, 'error')
+  })
+
+  afterAll(async () => {
+    await mongoose.disconnect()
+    await mongoose.connection.close()
   })
 
   describe('GET', function() {
@@ -56,7 +53,7 @@ describe('routes/products', function() {
       expect(res.status).toEqual(200)
       expect(JSON.parse(res.text)).toEqual([
         {
-          _id: productIds[0].toString(),
+          _id: expect.anything(),
           name: 'the product',
           category: {
             slug: 'foo',
@@ -78,10 +75,10 @@ describe('routes/products', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const findSpy = jest.spyOn(Product, 'find')
       
       const err = new Error('Error message')
-      collectionSpy.mockImplementation(() => { throw err })
+      findSpy.mockImplementation(() => { throw err })
 
       const res = await supertest(app).get('/products')
 

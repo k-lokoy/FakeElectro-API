@@ -1,13 +1,14 @@
 import supertest from 'supertest'
 import express from 'express'
 import bodyParser from 'body-parser'
-import { Collection, Db, Document, ObjectId } from 'mongodb'
+import { ObjectId, WithId } from 'mongodb'
+import { MongoMemoryServer } from 'mongodb-memory-server'
+import mongoose from 'mongoose'
 import * as jwtAuthz from 'express-jwt-authz'
-
-import { getDb } from '../../src/database'
-import productRouter from '../../src/routes/product'
 import { Express } from 'express-serve-static-core'
 
+import { Category, Product } from '../../src/database'
+import productRouter from '../../src/routes/product'
 import checkJwt from '../../src/middleware/checkJwt'
 
 jest.mock('../../src/middleware/checkJwt', () => jest.fn())
@@ -26,51 +27,39 @@ const jwtAuthzMocked: any = jest.mocked(jwtAuthz)
 
 describe('routes/product', function() {
   let app: Express
-  let db: Db
-  let categoriesCollection: Collection<Document>
-  let imagesCollection: Collection<Document>
-  let productsCollection: Collection<Document>
   
   beforeAll(async function() {
-    db = await getDb()
+    const mongoServer = await MongoMemoryServer.create()
     app = express()
 
-    app.use(bodyParser.json())
-    app.use(bodyParser.urlencoded({extended: true}))
-    app.use('/product', productRouter)
+    await mongoose.connect(mongoServer.getUri())
+
+    const insertedCategories = await Category.insertMany([
+      {slug: 'foo', name: 'Foo'},
+      {slug: 'bar', name: 'Bar'},
+    ])
     
-    // Insert categories
-    categoriesCollection = db.collection('Categories')
-    await Promise.all([
-      categoriesCollection.insertOne({slug: 'foo', name: 'Foo'}),
-      categoriesCollection.insertOne({slug: 'bar', name: 'Bar'}),
+    const insertedImages = await mongoose.connection.collection('images.files').insertMany([
+      {filename: 'foobar.jpg', contentType: 'images/jpeg'},
+      {filename: 'foobaz.png', contentType: 'images/png'},
     ])
 
-    // Insert images
-    imagesCollection = db.collection('images.files')
-    await Promise.all([
-      imagesCollection.insertOne({filename: 'foobar.jpg', contentType: 'images/jpeg'}),
-      imagesCollection.insertOne({filename: 'foobaz.png', contentType: 'images/png'}),
-    ])
-
-    // Insert products
-    productsCollection = db.collection('Products')
-    await Promise.all([
-      productsCollection.insertOne({
+    await Product.insertMany([
+      {
         name: 'The first product',
-        category: (await categoriesCollection.findOne({slug: 'foo'}))._id,
+        category: insertedCategories[0]._id,
         description: 'Description about the first product.',
         price: 55.5,
         in_stock: 12,
-        image: (await imagesCollection.findOne({filename: 'foobar.jpg'}))._id,
+        image: insertedImages.insertedIds[0],
         rating: {
           rate: 5,
           count: 99
         }
-      }),
-      productsCollection.insertOne({
+      },
+      {
         name: 'The second product',
-        category: (await categoriesCollection.findOne({slug: 'bar'}))._id,
+        category: insertedCategories[1]._id,
         description: 'Description about the second product.',
         price: 100,
         in_stock: 0,
@@ -78,8 +67,12 @@ describe('routes/product', function() {
           rate: 3,
           count: 4
         },
-      })
+      }
     ])
+   
+    app.use(bodyParser.json())
+    app.use(bodyParser.urlencoded({extended: true}))
+    app.use('/product', productRouter)
     
     jest.spyOn(console, 'error')
   })
@@ -89,11 +82,16 @@ describe('routes/product', function() {
     jwtAuthzMocked.jwtAuthzHandler.mockImplementation((req, res, next) => next())
   })
 
+  afterAll(async () => {
+    await mongoose.disconnect()
+    await mongoose.connection.close()
+  })
+
   describe('GET', function() {
-    let target: Document
+    let target
 
     beforeAll(async function() {
-      target = await productsCollection.findOne({name: 'The first product'})
+      target = await Product.findOne({name: 'The first product'})
     })
     
     it('Should respond with a product', async function() {
@@ -123,10 +121,10 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const findOneSpy = jest.spyOn(Product, 'findOne')
       
       const err = new Error('Error message')
-      collectionSpy.mockImplementation(() => { throw err })
+      findOneSpy.mockImplementation(() => { throw err })
 
       const uri = `/product/${target._id.toString()}`
       const res: any  = await supertest(app).get(uri)
@@ -134,21 +132,29 @@ describe('routes/product', function() {
       expect(console.error).toHaveBeenCalledWith('GET', uri, err)
       expect(res.status).toEqual(500)
 
-      collectionSpy.mockRestore()
+      findOneSpy.mockRestore()
     })
   })
 
   describe('POST', function() {
-    let image: Document
+    let image: WithId<mongoose.AnyObject>
     let body: any
 
     beforeAll(async function() {
-      image = await imagesCollection.findOne({filename: 'foobaz.png'})
+      image = await mongoose.connection.collection('images.files').findOne({filename: 'foobaz.png'})
+    })
 
+    beforeEach(function() {
       body = {
-        foo: 'bar',
+        name: 'foobar',
         category: 'foo',
-        image: image._id.toString()
+        price: 100,
+        in_stock: 12,
+        image: image._id.toString(),
+        rating: {
+          rate: 50,
+          count: 10
+        }
       }
     })
 
@@ -158,18 +164,25 @@ describe('routes/product', function() {
           .post('/product')
           .send(body)
           .set('Content-Type', 'application/json')
-  
-      const product = await productsCollection.findOne({_id: new ObjectId(res.text)})
+          
+      const { __v, ...product } = await Product.findOne({_id: new ObjectId(res.text)}).lean()
       
       expect(console.error).not.toHaveBeenCalled()
-      
-      expect(product).toEqual({
-        _id: new ObjectId(res.text),
-        category: (await categoriesCollection.findOne({slug: 'foo'}))._id,
-        image: image._id,
-        foo: 'bar'
-      })
 
+      const expectedProduct = {
+        _id: new ObjectId(res.text),
+        name: 'foobar',
+        category: (await Category.findOne({slug: 'foo'}))._id,
+        image: image._id,
+        price: 100,
+        in_stock: 12,
+        rating: {
+          rate: 50,
+          count: 10
+        }
+      }
+      
+      expect(product).toEqual(expectedProduct)
       expect(res.status).toEqual(201)
       expect(res.text).toEqual(product._id.toString())
     })
@@ -183,9 +196,9 @@ describe('routes/product', function() {
           .send(body)
           .set('Content-Type', 'application/json')
 
-      const table = await productsCollection.find().toArray()
+      const products = await Product.find()
 
-      expect(table.length).toEqual(3)
+      expect(products.length).toEqual(3)
       expect(res.status).toEqual(406)
       expect(res.text).toEqual('Invalid category')
     })
@@ -215,10 +228,10 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const insertOneSpy = jest.spyOn(Product.collection, 'insertOne')
       const err = new Error('Error message')
-      
-      collectionSpy.mockImplementation(() => { throw err })
+
+      insertOneSpy.mockImplementation(() => { throw err })
 
       const res =
         await supertest(app)
@@ -229,37 +242,52 @@ describe('routes/product', function() {
       expect(console.error).toHaveBeenCalledWith('POST', '/product', err)
       expect(res.status).toEqual(500)
 
-      collectionSpy.mockRestore()
+      insertOneSpy.mockRestore()
     })
   })
 
   describe('PUT', function() {
-    let target: Document
+    let product: Product
+    let body: any
 
     beforeEach(async function() {
-      target = await productsCollection.findOne({name: 'The first product'})
+      product = await Product.findOne({name: 'The first product'})
+    
+      body = {
+        name: product.name,
+        category: 'bar',
+        price: 500,
+        in_stock: 501,
+        rating: {
+          rate: 50,
+          count: 5
+        }
+      }
     })
     
     it('should replace a database entry', async function() {
       const res =
         await supertest(app)
-          .put(`/product/${target._id.toString()}`)
-          .send({
-            name: target.name,
-            bar: 'qux',
-            category: 'bar'
-          })
+          .put(`/product/${product._id.toString()}`)
+          .send(body)
           .set('Content-Type', 'application/json')
+
+      const expectedProduct = {
+        _id: product._id,
+        name: product.name,
+        category: (await Category.findOne({slug: 'bar'}))._id,
+        price: 500,
+        in_stock: 501,
+        rating: {
+          rate: 50,
+          count: 5
+        }
+      }
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(200)
 
-      expect(await productsCollection.findOne({_id: target._id})).toEqual({
-        _id: target._id,
-        name: target.name,
-        bar: 'qux',
-        category: (await categoriesCollection.findOne({slug: 'bar'}))._id
-      })
+      expect(await Product.findOne({_id: product._id}).lean()).toEqual(expectedProduct)
     })
 
     it('Should respond with a 404 status code if the entry does not exist', async function() {
@@ -268,7 +296,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .put(`/product/${randomId.toString()}`)
-          .send({})
+          .send(body)
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -276,10 +304,12 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
+      body.category = 'invalid'
+      
       const res =
         await supertest(app)
-          .put(`/product/${target._id.toString()}`)
-          .send({category: 'invalid'})
+          .put(`/product/${product._id.toString()}`)
+          .send(body)
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
@@ -292,7 +322,7 @@ describe('routes/product', function() {
 
       const res =
         await supertest(app)
-          .put(`/product/${target._id.toString()}`)
+          .put(`/product/${product._id.toString()}`)
           .send({})
           .set('Content-Type', 'application/json')
       
@@ -304,7 +334,7 @@ describe('routes/product', function() {
       
       const res =
         await supertest(app)
-          .put(`/product/${target._id.toString()}`)
+          .put(`/product/${product._id.toString()}`)
           .send({})
           .set('Content-Type', 'application/json')
     
@@ -312,57 +342,58 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const findOneAndReplaceSpy = jest.spyOn(Product, 'findOneAndReplace')
       const err = new Error('Error message')
-      const uri = `/product/${target._id.toString()}`
+      const uri = `/product/${product._id.toString()}`
       
-      collectionSpy.mockImplementation(() => { throw err })
+      findOneAndReplaceSpy.mockImplementation(() => { throw err })
 
       const res =
         await supertest(app)
           .put(uri)
-          .send({})
+          .send(body)
           .set('Content-Type', 'application/json')
 
       expect(console.error).toHaveBeenCalledWith('PUT', uri, err)
       expect(res.status).toEqual(500)
 
-      collectionSpy.mockRestore()
+      findOneAndReplaceSpy.mockRestore()
     })
   })
   
   describe('PATCH', function() {
-    let target: Document
+    let product: Product
 
     beforeEach(async function() {
-      target = await productsCollection.findOne({name: 'The first product'})
+      product = await Product.findOne({name: 'The first product'}).lean()
     })
 
     it('Should add and replace data to an entry', async function() {
-      const category = await categoriesCollection.findOne({slug: 'foo'})
+      const category = await Category.findOne({slug: 'foo'})
       const imageId = new ObjectId()
 
       const res =
         await supertest(app)
-          .patch(`/product/${target._id.toString()}`)
+          .patch(`/product/${product._id.toString()}`)
           .send({
             category: 'foo',
             image: imageId.toString(),
-            baz: 'quux'
+            price: 1000
           })
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toBeCalled()
       expect(res.status).toEqual(200)
       
-      expect(await productsCollection.findOne({_id: target._id})).toEqual({
-        _id: target._id,
-        name: target.name,
+      const actualProduct = await Product.findOne({_id: product._id}).lean()
+      const expectedProduct: Product = {
+        ...product,
         category: category._id,
-        bar: 'qux',
-        baz: 'quux',
         image: imageId,
-      })
+        price: 1000,
+      }
+
+      expect(actualProduct).toEqual(expectedProduct)
     })
 
     it('Should respond with a 404 status code if the entry does not exist', async function() {
@@ -381,7 +412,7 @@ describe('routes/product', function() {
     it('Should respond with a 406 status code if the category is invalid', async function() {
       const res =
         await supertest(app)
-          .patch(`/product/${target._id.toString()}`)
+          .patch(`/product/${product._id.toString()}`)
           .send({category: 'invalid'})
           .set('Content-Type', 'application/json')
 
@@ -395,7 +426,7 @@ describe('routes/product', function() {
 
       const res =
         await supertest(app)
-          .patch(`/product/${target._id.toString()}`)
+          .patch(`/product/${product._id.toString()}`)
           .send({})
           .set('Content-Type', 'application/json')
       
@@ -407,7 +438,7 @@ describe('routes/product', function() {
       
       const res =
         await supertest(app)
-          .patch(`/product/${target._id.toString()}`)
+          .patch(`/product/${product._id.toString()}`)
           .send({})
           .set('Content-Type', 'application/json')
     
@@ -415,11 +446,11 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const findOneAndUpdateSpy = jest.spyOn(Product, 'findOneAndUpdate')
       const err = new Error('Error message')
-      const uri = `/product/${target._id.toString()}`
+      const uri = `/product/${product._id.toString()}`
       
-      collectionSpy.mockImplementation(() => { throw err })
+      findOneAndUpdateSpy.mockImplementation(() => { throw err })
 
       const res =
         await supertest(app)
@@ -430,18 +461,33 @@ describe('routes/product', function() {
       expect(console.error).toHaveBeenCalledWith('PATCH', uri, err)
       expect(res.status).toEqual(500)
 
-      collectionSpy.mockRestore()
+      findOneAndUpdateSpy.mockRestore()
     })
   })
 
   describe('DELETE', function() {
-    let target: Document
-    let expectedProducts: Document[]
+    let target: Product
+    let expectedProducts: Product[]
 
     beforeAll(async function() {
-      target = await productsCollection.findOne({name: 'The first product'})
-      const products = await productsCollection.find({}).toArray()
+      target = await Product.findOne({name: 'The first product'})
+      const products = await Product.find().lean()
       expectedProducts = products.filter(product => product._id.toString() !== target._id.toString())
+    })
+
+    it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
+      const deleteOneSpy = jest.spyOn(Product, 'deleteOne')
+      const err = new Error('Error message')
+      const uri = `/product/${target._id.toString()}`
+      
+      deleteOneSpy.mockImplementation(() => { throw err })
+
+      const res = await supertest(app).delete(uri)
+    
+      expect(res.status).toEqual(500)
+      expect(console.error).toHaveBeenCalledWith('DELETE', uri, err)
+
+      deleteOneSpy.mockRestore()
     })
 
     it('Should delete an entry', async function() {      
@@ -449,13 +495,11 @@ describe('routes/product', function() {
 
       expect(console.error).not.toBeCalled()
       expect(res.status).toEqual(200)
-      expect(await productsCollection.find().toArray()).toEqual(expectedProducts)
+      expect(await Product.find().lean()).toEqual(expectedProducts)
     })
 
     it('Should respond with a 404 status code if the entry does not exist', async function() {
-      const randomId = new ObjectId()
-
-      const res = await supertest(app).delete(`/product/${randomId.toString()}`)
+      const res = await supertest(app).delete(`/product/${target._id.toString()}`)
           
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(404)
@@ -475,21 +519,6 @@ describe('routes/product', function() {
       const res = await supertest(app).delete(`/product/${target._id.toString()}`)
       
       expect(res.status).toEqual(401)
-    })
-
-    it('Should respond with a 500 status code if there was an issue writing to the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
-      const err = new Error('Error message')
-      const uri = `/product/${target._id.toString()}`
-      
-      collectionSpy.mockImplementation(() => { throw err })
-
-      const res = await supertest(app).delete(uri)
-    
-      expect(console.error).toHaveBeenCalledWith('DELETE', uri, err)
-      expect(res.status).toEqual(500)
-
-      collectionSpy.mockRestore()
     })
   })
 })

@@ -1,13 +1,12 @@
 import { Router } from 'express'
 
-import { getDb } from '../database'
+import { Category } from '../database'
 
 const categoriesRouter = Router()
 
 categoriesRouter.get('/', async function(req, res) {
   try {
-    const db = await getDb()
-    const categories = await db.collection('Categories').find().toArray()
+    const categories = await Category.find()
 
     res.status(200).send(categories.map(({ slug, name }) => ({slug, name})))
   

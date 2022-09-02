@@ -1,11 +1,10 @@
 import multer from 'multer'
 import { GridFsStorage } from 'multer-gridfs-storage'
-
-import { getDb } from '../database'
+import mongoose from 'mongoose'
 
 const storage = new GridFsStorage({
   url: process.env.MONGODB_CONNECTION_STRING,
-  db: getDb(),
+  db: mongoose.connection.db,
   options: {
     useNewUrlParser: true,
     useUnifiedTopology: true

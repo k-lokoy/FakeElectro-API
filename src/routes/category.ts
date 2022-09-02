@@ -1,22 +1,22 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 
 import getURLFromRequest from '../utils/getURLFromRequest'
-import { getDb } from '../database'
+import { Product, Category } from '../database'
 import generateImageDataForResponse from '../utils/generateImageDataForResponse'
 
 const categoryRouter = Router()
 
 categoryRouter.get('/:slug', async function(req, res) {
   try {
-    const db = await getDb()
-    const category = await db.collection('Categories').findOne({slug: req.params.slug})
-
+    const category = await Category.findOne({slug: req.params.slug}).lean()
+    
     if (!category)
       return res.sendStatus(404)
 
-    const products = await db.collection('Products').find({category: category._id}).toArray()
+    const products = await Product.find({category: category._id}).lean()
     
-    res.status(200).send(await Promise.all(products.map(async product => {
+    res.status(200).send(await Promise.all(products.map(async ({ __v, ...product }) => {
       const data: any = {
         ...product,
         category: {
@@ -24,10 +24,10 @@ categoryRouter.get('/:slug', async function(req, res) {
           name: category?.name,
         }
       }
-
+      
       if (product.image)
         data.image = generateImageDataForResponse(
-          (await db.collection('images.files').findOne({_id: product.image})),
+          (await mongoose.connection.collection('images.files').findOne({_id: product.image})),
           getURLFromRequest(req)
         )
 

@@ -1,25 +1,81 @@
-import { Db, MongoClient } from 'mongodb'
+import { ObjectId } from 'mongodb'
+import mongoose, { Schema } from 'mongoose'
 
-if ('test' !== process.env.NODE_ENV && !process.env.MONGODB_CONNECTION_STRING)
-  throw new Error('Missing database connection string.')
-
-export const client = new MongoClient(
-  'test' === process.env.NODE_ENV
-    ? global.__MONGO_URI__
-    : process.env.MONGODB_CONNECTION_STRING
-)
-
-let db: Db
-export async function getDb() {
-  if (db) return db
-
-  const connectedClient = await client.connect()
-  
-  db = connectedClient.db(
-    'test' === process.env.NODE_ENV
-    ? globalThis.__MONGO_DB_NAME__
-    : process.env.MONGODB_DB_NAME
-  )
-
-  return db
+export interface Product {
+  _id: ObjectId,
+  name: string,
+  category: ObjectId,
+  description?: string,
+  price: number,
+  image: ObjectId,
+  in_stock: number,
+  rating: {
+    rate: number,
+    count: number
+  },
+  __v: number
 }
+
+const productSchema = new Schema<Product>({
+  name: {
+    type: String,
+    required: true
+  },
+  category: {
+    type: mongoose.Types.ObjectId,
+    required: true
+  },
+  description: {
+    type: String,
+    default: '',
+  },
+  price: {
+    type: Number,
+    default: 100,
+    required: true
+  },
+  image: mongoose.Types.ObjectId,
+  in_stock: {
+    type: Number,
+    default: 0,
+    required: true
+  },
+  rating: {
+    rate: {
+      type: Number,
+      required: true
+    },
+    count: {
+      type: Number,
+      required: true
+    }
+  }
+})
+
+export interface Category {
+  _id: ObjectId,
+  slug: string,
+  name: string,
+  __v: number
+}
+
+const categorySchema = new Schema<Category>({
+  slug: {
+    type: String,
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
+  }
+})
+
+export const Product = mongoose.model<Product>('Product', productSchema)
+export const Category = mongoose.model<Category>('Category', categorySchema)
+
+// Category.insertMany([
+//   {slug: 'computers', name: 'Computers'},
+//   {slug: 'consoles', name: 'consoles'},
+//   {slug: 'peripherals', name: 'peripherals'},
+//   {slug: 'handhelds', name: 'Handhelds'},
+// ])

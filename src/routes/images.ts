@@ -1,6 +1,6 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 
-import { getDb } from '../database'
 import generateImageDataForResponse from '../utils/generateImageDataForResponse'
 import getURLFromRequest from '../utils/getURLFromRequest'
 
@@ -8,8 +8,7 @@ const imagesRouter = Router()
 
 imagesRouter.get('/', async function(req, res) {
   try {
-    const db = await getDb()
-    const images = await db.collection('images.files').find({}).toArray()
+    const images = await mongoose.connection.collection('images.files').find().toArray()
     
     res.status(200).send(images.map(img => {
       const { url } = generateImageDataForResponse(img, getURLFromRequest(req))

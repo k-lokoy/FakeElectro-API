@@ -4,7 +4,6 @@ import bodyParser from 'body-parser'
 import { Collection, Db, Document, ObjectId } from 'mongodb'
 import * as jwtAuthz from 'express-jwt-authz'
 
-import { getDb } from '../../src/database'
 import imageRouter from '../../src/routes/image'
 
 describe('routes/image', function() {

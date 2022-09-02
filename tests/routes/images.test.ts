@@ -1,51 +1,56 @@
 import supertest from 'supertest'
 import express from 'express'
+import { ObjectId } from 'mongodb'
+import mongoose from 'mongoose'
+import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Express } from 'express-serve-static-core'
-import { Db, Collection, Document, ObjectId } from 'mongodb'
 
-import { getDb } from '../../src/database'
 import imagesRouter from '../../src/routes/images'
 
 describe('routes/images', function() {
-  let imagesCollection: Collection<Document>
   let app: Express
-  let db: Db
   
   beforeAll(async function() {
-    db = await getDb()
-    imagesCollection = db.collection('images.files')
+    const mongoServer = await MongoMemoryServer.create()
     app = express()
 
-    app.use('/images', imagesRouter)
+    await mongoose.connect(mongoServer.getUri())
 
-    await Promise.all([
-      imagesCollection.insertOne({
+    await mongoose.connection.collection('images.files').insertMany([
+      {
         _id:         new ObjectId(),
         contentType: 'image/jpeg',
         uploadDate:  '1970-01-01',
         filename:    'foo.jpg',
-      }),
-      imagesCollection.insertOne({
+      },
+      {
         _id:         new ObjectId(),
         contentType: 'unknown',
         uploadDate:  '2020-12-24',
         filename:    'bar.jpg',
-      }),
-      imagesCollection.insertOne({
+      },
+      {
         _id:         new ObjectId(),
         contentType: 'image/png',
         uploadDate:  '2000-01-01',
         filename:    'baz.png',
-      })
+      }
     ])
 
+    app.use('/images', imagesRouter)
+
     jest.spyOn(console, 'error')
+  })
+
+  afterAll(async () => {
+    await mongoose.disconnect()
+    await mongoose.connection.close()
   })
 
   describe('GET', function() {
     it('Should respond with an array of images in the database', async function() {
       const res: any = await supertest(app).get('/images')
-      const table = await imagesCollection.find({}).toArray()
+      const table = await mongoose.connection.collection('images.files').find().toArray()
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(200)
@@ -75,7 +80,7 @@ describe('routes/images', function() {
     })
 
     it('Should respond with an empty array if there are no image sin the database', async function() {
-      await imagesCollection.drop()
+      await mongoose.connection.collection('images.files').drop()
 
       const res: any = await supertest(app).get('/images')
 
@@ -85,7 +90,7 @@ describe('routes/images', function() {
     })
 
     it('should respond with a 500 status code if there was an issue reading the database', async function() {
-      const collectionSpy = jest.spyOn(db, 'collection')
+      const collectionSpy = jest.spyOn(mongoose.connection, 'collection')
         
       const err = new Error('Error message')
       collectionSpy.mockImplementation(() => { throw err })
