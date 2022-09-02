@@ -72,10 +72,3 @@ const categorySchema = new Schema<Category>({
 
 export const Product = mongoose.model<Product>('Product', productSchema)
 export const Category = mongoose.model<Category>('Category', categorySchema)
-
-// Category.insertMany([
-//   {slug: 'computers', name: 'Computers'},
-//   {slug: 'consoles', name: 'consoles'},
-//   {slug: 'peripherals', name: 'peripherals'},
-//   {slug: 'handhelds', name: 'Handhelds'},
-// ])
