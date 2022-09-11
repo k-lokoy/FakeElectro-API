@@ -1,8 +1,15 @@
-import { Document } from 'mongodb'
+import { ObjectId } from 'mongodb'
+import mongoose from 'mongoose'
 
-export default function generateImageDataForResponse(image: Document, url: string) {
-  const ext = image.contentType.match(/\/(.*)/)?.[1] || 'jpeg'
-  const _id = image._id.toString()
-        
-  return {_id, url: `${url}/image/${_id}.${ext}`}
+export default async function generateImageDataForResponse(_id: ObjectId, url: string) {
+  try {
+    const image = await mongoose.connection.collection('images.files').findOne({_id})
+    const ext = image.contentType.match(/\/(.*)/)?.[1] || 'jpeg'
+    
+    return {_id, url: `${url}/image/${_id.toString()}.${ext}`}
+  
+  } catch (err) {
+    console.error(err)
+    return {_id}
+  }
 }

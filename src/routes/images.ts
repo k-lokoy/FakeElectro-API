@@ -10,8 +10,8 @@ imagesRouter.get('/', async function(req, res) {
   try {
     const images = await mongoose.connection.collection('images.files').find().toArray()
     
-    res.status(200).send(images.map(img => {
-      const { url } = generateImageDataForResponse(img, getURLFromRequest(req))
+    res.status(200).send(await Promise.all(images.map(async img => {
+      const { url } = await generateImageDataForResponse(img._id, getURLFromRequest(req))
     
       return {
         _id:        img._id,
@@ -20,7 +20,7 @@ imagesRouter.get('/', async function(req, res) {
         type:       img.contentType,
         url
       }
-    }))
+    })))
 
   } catch (err) {
     console.error(req.method, req.originalUrl, err)

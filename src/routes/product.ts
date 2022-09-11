@@ -28,10 +28,7 @@ productRouter.get('/:id', async function(req, res) {
     }
 
     if (product.image)
-      data.image = generateImageDataForResponse(
-        (await mongoose.connection.collection('images.files').findOne({_id: product.image})),
-        getURLFromRequest(req)
-      )
+      data.image = await generateImageDataForResponse(product.image, getURLFromRequest(req))
 
     res.status(200).send(data)
   
