@@ -90,7 +90,10 @@ productRouter.put(
       if (!existingEntry)
         return res.sendStatus(404)
 
-      const category = await Category.findOne({slug: req.body.category})
+      const category = req.body.category
+        ? await Category.findOne({slug: req.body.category})
+        : await Category.findOne({_id: existingEntry.category})
+
       if (!category)
         return res.status(406).send('Invalid category')
 
@@ -149,7 +152,7 @@ productRouter.patch(
 
       if (validationErr) {
         const { name, message } = Object.values(validationErr.errors)[0]
-        return res.status(400).send(`${name}: ${message}`)
+        return res.status(406).send(`${name}: ${message}`)
       }
 
       await Product.findOneAndUpdate({_id: product._id}, data)
