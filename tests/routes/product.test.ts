@@ -205,12 +205,11 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .post('/product')
-          .send({category: body.category, foo: 'bar'})
+          .send({category: body.category})
           .set('Content-Type', 'application/json')
 
       expect(res.status).toEqual(406)
       expect(res.text).toEqual('ValidatorError: Path `rating` is required.')
-
     })
 
     it('should respond with a 401 status code if the token is invalid', async function() {
@@ -259,8 +258,9 @@ describe('routes/product', function() {
   describe('PUT', function() {
     let product: Product
     let body: any
+    let expectedProduct: any
 
-    beforeEach(async function() {
+    beforeAll(async function() {
       product = await Product.findOne({name: 'The first product'})
     
       body = {
@@ -269,6 +269,19 @@ describe('routes/product', function() {
         price: 500,
         in_stock: 501,
         rating: {
+          rate: 50,
+          count: 5
+        }
+      }
+
+      expectedProduct = {
+        _id: product._id,
+        name: product.name,
+        category: (await Category.findOne({slug: 'bar'}))._id,
+        price: 500,
+        in_stock: 501,
+        rating: {
+          _id: expect.anything(),
           rate: 50,
           count: 5
         }
@@ -282,22 +295,20 @@ describe('routes/product', function() {
           .send(body)
           .set('Content-Type', 'application/json')
 
-      const expectedProduct = {
-        _id: product._id,
-        name: product.name,
-        category: (await Category.findOne({slug: 'bar'}))._id,
-        price: 500,
-        in_stock: 501,
-        rating: {
-          _id: expect.anything(),
-          rate: 50,
-          count: 5
-        }
-      }
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(200)
+      expect(await Product.findOne({_id: product._id}).lean()).toEqual(expectedProduct)
+    })
+
+    it('Should ignore additional properties', async function() {
+      const res =
+        await supertest(app)
+          .put(`/product/${product._id.toString()}`)
+          .send({...body, foo: 'bar'})
+          .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(200)
-
       expect(await Product.findOne({_id: product._id}).lean()).toEqual(expectedProduct)
     })
 
@@ -315,17 +326,27 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
-      body.category = 'invalid'
-      
       const res =
         await supertest(app)
           .put(`/product/${product._id.toString()}`)
-          .send(body)
+          .send({...body, category: 'invalid'})
           .set('Content-Type', 'application/json')
 
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(406)
       expect(res.text).toEqual('Invalid category')
+    })
+
+    it('Should respond with a 406 status code if the data could not be validated', async function() {
+      const res =
+        await supertest(app)
+          .put(`/product/${product._id.toString()}`)
+          .send({...body, price: 'foobar'})
+          .set('Content-Type', 'application/json')
+
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(406)
+      expect(res.text).toEqual('CastError: Cast to Number failed for value "foobar" (type string) at path "price"')
     })
 
     it('Should respond with a 401 status code if the token is invalid', async function() {
@@ -334,7 +355,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .put(`/product/${product._id.toString()}`)
-          .send({})
+          .send(body)
           .set('Content-Type', 'application/json')
       
       expect(res.status).toEqual(401)
@@ -346,7 +367,7 @@ describe('routes/product', function() {
       const res =
         await supertest(app)
           .put(`/product/${product._id.toString()}`)
-          .send({})
+          .send(body)
           .set('Content-Type', 'application/json')
     
       expect(res.status).toEqual(401)
@@ -430,6 +451,17 @@ describe('routes/product', function() {
       expect(console.error).not.toHaveBeenCalled()
       expect(res.status).toEqual(406)
       expect(res.text).toEqual('Invalid category')
+    })
+
+    it('Should respond with a 406 status code if the data could not be validated', async function() {
+      const res =
+        await supertest(app)
+          .patch(`/product/${product._id.toString()}`)
+          .send({price: 'foobar'})
+          .set('Content-Type', 'application/json')
+
+      expect(res.status).toEqual(406)
+      expect(res.text).toEqual('CastError: Cast to Number failed for value "foobar" (type string) at path "price"')
     })
 
     it('Should respond with a 401 status code if the token is invalid', async function() {
