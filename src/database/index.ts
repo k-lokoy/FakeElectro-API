@@ -41,13 +41,16 @@ const productSchema = new Schema<Product>({
     required: true
   },
   rating: {
-    rate: {
-      type: Number,
-      required: true
-    },
-    count: {
-      type: Number,
-      required: true
+    required: true,
+    type: {
+      rate: {
+        type: Number,
+        required: true
+      },
+      count: {
+        type: Number,
+        required: true
+      }
     }
   }
 })

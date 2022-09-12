@@ -138,24 +138,22 @@ describe('routes/product', function() {
 
   describe('POST', function() {
     let image: WithId<mongoose.AnyObject>
-    let body: any
+    
+    const body = {
+      name: 'foobar',
+      category: 'foo',
+      price: 100,
+      in_stock: 12,
+      image: null,
+      rating: {
+        rate: 50,
+        count: 10
+      }
+    }
 
     beforeAll(async function() {
       image = await mongoose.connection.collection('images.files').findOne({filename: 'foobaz.png'})
-    })
-
-    beforeEach(function() {
-      body = {
-        name: 'foobar',
-        category: 'foo',
-        price: 100,
-        in_stock: 12,
-        image: image._id.toString(),
-        rating: {
-          rate: 50,
-          count: 10
-        }
-      }
+      body.image = image._id.toString()
     })
 
     it('Should add a product to the database', async function() {
@@ -173,10 +171,12 @@ describe('routes/product', function() {
         _id: new ObjectId(res.text),
         name: 'foobar',
         category: (await Category.findOne({slug: 'foo'}))._id,
+        description: '',
         image: image._id,
         price: 100,
         in_stock: 12,
         rating: {
+          _id: expect.anything(),
           rate: 50,
           count: 10
         }
@@ -188,12 +188,10 @@ describe('routes/product', function() {
     })
 
     it('Should respond with a 406 status code if the category is invalid', async function() {
-      body.category = 'invalid'
-
       const res =
         await supertest(app)
           .post('/product')
-          .send(body)
+          .send({...body, category: 'invalid'})
           .set('Content-Type', 'application/json')
 
       const products = await Product.find()
@@ -201,6 +199,18 @@ describe('routes/product', function() {
       expect(products.length).toEqual(3)
       expect(res.status).toEqual(406)
       expect(res.text).toEqual('Invalid category')
+    })
+
+    it('Should respond with a 406 status code if the data could not be validated', async function() {
+      const res =
+        await supertest(app)
+          .post('/product')
+          .send({category: body.category, foo: 'bar'})
+          .set('Content-Type', 'application/json')
+
+      expect(res.status).toEqual(406)
+      expect(res.text).toEqual('ValidatorError: Path `rating` is required.')
+
     })
 
     it('should respond with a 401 status code if the token is invalid', async function() {
@@ -279,6 +289,7 @@ describe('routes/product', function() {
         price: 500,
         in_stock: 501,
         rating: {
+          _id: expect.anything(),
           rate: 50,
           count: 5
         }

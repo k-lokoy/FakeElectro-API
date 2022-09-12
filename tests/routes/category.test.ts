@@ -66,76 +66,78 @@ describe('routes/category', function() {
 
     jest.spyOn(console, 'error')
   })
-
-  it('Should respond with an array of products in the category', async function() {
-    const res: any = await supertest(app).get('/category/category-1')
-
-    expect(console.error).not.toHaveBeenCalled()
-    expect(res.status).toEqual(200)
-    
-    const imageId = insertedImage.insertedId.toString()
-    expect(JSON.parse(res.text)).toEqual([
-      {
-        _id: insertedProducts[0]._id.toString(),
-        name: 'Product 1',
-        description: '',
-        category: {
-          slug: 'category-1',
-          name: 'Category 1'
-        },
-        price: 100,
-        in_stock: 101,
-        rating: {
-          rate: 10,
-          count: 1
-        }
-      },
-      {
-        _id: insertedProducts[1]._id.toString(),
-        name: 'Product 2',
-        description: '',
-        category: {
-          slug: 'category-1',
-          name: 'Category 1'
-        },
-        image: {
-          _id: imageId,
-          url: `${res.request.protocol}//${res.req.host}/image/${imageId}.png`
-        },
-        price: 200,
-        in_stock: 201,
-        rating: {
-          rate: 20,
-          count: 2
-        }
-      }
-    ])
-  })
-
-  it('Should handle the category not having any products', async function() {
-    const res = await supertest(app).get('/category/category-3')
-
-    expect(console.error).not.toHaveBeenCalled()
-    expect(res.status).toEqual(200)
-    expect(JSON.parse(res.text)).toEqual([])
-  })
-
-  it('Should respond with a 404 status code if the category does not exist', async function() {
-    const res = await supertest(app).get('/category/invalid')
   
-    expect(console.error).not.toHaveBeenCalled()
-    expect(res.status).toEqual(404)
-  })
+  describe('GET', function() {
+    it('Should respond with an array of products in the category', async function() {
+      const res: any = await supertest(app).get('/category/category-1')
 
-  it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-    const findSpy = jest.spyOn(Product, 'find')
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(200)
+      
+      const imageId = insertedImage.insertedId.toString()
+      expect(JSON.parse(res.text)).toEqual([
+        {
+          _id: insertedProducts[0]._id.toString(),
+          name: 'Product 1',
+          description: '',
+          category: {
+            slug: 'category-1',
+            name: 'Category 1'
+          },
+          price: 100,
+          in_stock: 101,
+          rating: {
+            rate: 10,
+            count: 1
+          }
+        },
+        {
+          _id: insertedProducts[1]._id.toString(),
+          name: 'Product 2',
+          description: '',
+          category: {
+            slug: 'category-1',
+            name: 'Category 1'
+          },
+          image: {
+            _id: imageId,
+            url: `${res.request.protocol}//${res.req.host}/image/${imageId}.png`
+          },
+          price: 200,
+          in_stock: 201,
+          rating: {
+            rate: 20,
+            count: 2
+          }
+        }
+      ])
+    })
+
+    it('Should handle the category not having any products', async function() {
+      const res = await supertest(app).get('/category/category-3')
+
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(200)
+      expect(JSON.parse(res.text)).toEqual([])
+    })
+
+    it('Should respond with a 404 status code if the category does not exist', async function() {
+      const res = await supertest(app).get('/category/invalid')
     
-    const err = new Error('Error message')
-    findSpy.mockImplementation(() => { throw err })
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(404)
+    })
 
-    const res = await supertest(app).get('/category/category-1')
+    it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
+      const findSpy = jest.spyOn(Product, 'find')
+      
+      const err = new Error('Error message')
+      findSpy.mockImplementation(() => { throw err })
 
-    expect(console.error).toHaveBeenCalledWith('GET', '/category/category-1', err)
-    expect(res.status).toEqual(500)
+      const res = await supertest(app).get('/category/category-1')
+
+      expect(console.error).toHaveBeenCalledWith('GET', '/category/category-1', err)
+      expect(res.status).toEqual(500)
+    })
   })
 })

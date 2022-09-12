@@ -27,6 +27,8 @@ productRouter.get('/:id', async function(req, res) {
       }
     }
 
+    delete data.rating._id
+
     if (product.image)
       data.image = await generateImageDataForResponse(product.image, getURLFromRequest(req))
 
@@ -57,10 +59,18 @@ productRouter.post(
       if (data.image)
         data.image = new ObjectId(data.image)
 
-      const { insertedId } = await Product.collection.insertOne(data)
-    
-      res.status(201).send(insertedId.toString())
-    
+      const product = new Product(data)
+      const validationErr = product.validateSync()
+
+      if (validationErr) {
+        const { name, message } = Object.values(validationErr.errors)[0]
+        return res.status(406).send(`${name}: ${message}`)
+      }
+
+      const { _id } = await product.save()
+      
+      res.status(201).send(_id.toString())
+      
     } catch (err) {
       console.error(req.method, req.originalUrl, err)
       res.sendStatus(500)
@@ -89,6 +99,14 @@ productRouter.put(
         category: category._id,
       }
       
+      const newProduct = new Product(data)
+      const validationErr = newProduct.validateSync()
+
+      if (validationErr) {
+        const { name, message } = Object.values(validationErr.errors)[0]
+        return res.status(406).send(`${name}: ${message}`)
+      }
+
       await Product.findOneAndReplace({_id}, data)
       
       res.sendStatus(200)
@@ -108,7 +126,7 @@ productRouter.patch(
     try {
       const _id = new ObjectId(req.params.id)
       
-      const product = await Product.findOne({_id})
+      const product = await Product.findOne({_id}).lean()
       if (!product)
         return res.sendStatus(404)
       
@@ -125,6 +143,14 @@ productRouter.patch(
 
       if (data.image)
         data.image = new ObjectId(data.image)
+
+      const newProduct = new Product({...product, ...data})
+      const validationErr = newProduct.validateSync()
+
+      if (validationErr) {
+        const { name, message } = Object.values(validationErr.errors)[0]
+        return res.status(400).send(`${name}: ${message}`)
+      }
 
       await Product.findOneAndUpdate({_id: product._id}, data)
       

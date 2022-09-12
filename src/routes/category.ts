@@ -24,6 +24,8 @@ categoryRouter.get('/:slug', async function(req, res) {
           name: category?.name,
         }
       }
+
+      delete data.rating._id
       
       if (product.image) 
         data.image = await generateImageDataForResponse(product.image, getURLFromRequest(req))
