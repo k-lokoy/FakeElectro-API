@@ -1,5 +1,5 @@
 {
-  "name": "fake-store-api",
+  "name": "fakeelectro-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lokoydesign/fake-store-api.git"
+    "url": "git+https://github.com/lokoydesign/fakeelectro-api.git"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/lokoydesign/fake-store-api/issues"
+    "url": "https://github.com/lokoydesign/fakeelectro-api/issues"
   },
-  "homepage": "https://github.com/lokoydesign/fake-store-api#readme",
+  "homepage": "https://github.com/lokoydesign/fakeelectro-api#readme",
   "dependencies": {
     "body-parser": "^1.20.0",
     "cors": "^2.8.5",
