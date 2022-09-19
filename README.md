@@ -4,7 +4,7 @@ An API made for my [FakeElectro](https://github.com/lokoydesign/fakeelectro) Pro
 ## Products
 ### GET all products
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/products')
+fetch('https://fakeepectroapi.herokuapp.com/products')
   .then((res) => res.json())
   .then((products) => console.log(products))
 ```
@@ -12,14 +12,14 @@ fetch('http://fakeelectroapi.lokoydesign.com/products')
 ## Categories
 ### GET categories
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/categories')
+fetch('https://fakeepectroapi.herokuapp.com/categories')
   .then((res) => res.json())
   .then((categories) => console.log(categories))
 ```
 
 ## GET all products in a category
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/category/:slug')
+fetch('https://fakeepectroapi.herokuapp.com/category/:slug')
   .then((res) => res.json())
   .then((products) => console.log(products))
 ```
@@ -27,14 +27,14 @@ fetch('http://fakeelectroapi.lokoydesign.com/category/:slug')
 ## Product
 ### GET a product
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/product/:id')
+fetch('https://fakeepectroapi.herokuapp.com/product/:id')
   .then((res) => res.json())
   .then((product) => console.log(product))
 ```
 
 ### POST a new product
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/product', {
+fetch('https://fakeepectroapi.herokuapp.com/product', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/product', {
 
 ### PUT an existing product
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
+fetch('https://fakeepectroapi.herokuapp.com/product/:id', {
   method: 'PUT',
   headers: {
     'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
 
 ### PATCH an existing product
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
+fetch('https://fakeepectroapi.herokuapp.com/product/:id', {
   method: 'PATCH',
   headers: {
     'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
 
 ### DELETE a product
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
+fetch('https://fakeepectroapi.herokuapp.com/product/:id', {
   method: 'DELETE',
   headers: {
     Authorization: `Bearer ${token}`
@@ -97,7 +97,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/product/:id', {
 ## Images
 ### GET all images
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/images')
+fetch('https://fakeepectroapi.herokuapp.com/images')
   .then((res) => res.json())
   .then((images) => console.log(images))
 ```
@@ -105,7 +105,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/images')
 ## Image
 ### GET an image
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/image/:id')
+fetch('https://fakeepectroapi.herokuapp.com/image/:id')
   .then(res => res.blob())
   .then(imageBlob => {
       const imageObjectURL = URL.createObjectURL(imageBlob)
@@ -119,7 +119,7 @@ const fileInputElement = document.getElementById('file-input')
 const formData = new FormData()
 imgFormData.set('file', fileInputElement.files[0])
 
-fetch('http://fakeelectroapi.lokoydesign.com/image', {
+fetch('https://fakeepectroapi.herokuapp.com/image', {
   method: 'POST',
   headers: {
     Authorization: `Bearer ${token}`
@@ -130,7 +130,7 @@ fetch('http://fakeelectroapi.lokoydesign.com/image', {
 
 ### DELETE an image
 ```javascript
-fetch('http://fakeelectroapi.lokoydesign.com/image/:id', {
+fetch('https://fakeepectroapi.herokuapp.com/image/:id', {
   method: 'DELETE',
   headers: {
     Authorization: `Bearer ${token}`
