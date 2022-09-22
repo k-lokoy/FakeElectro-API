@@ -13,17 +13,18 @@ const productRouter = Router()
 productRouter.get('/:id', async function(req, res) {
   try {
     const _id = new ObjectId(req.params.id)
-    const { __v, ...product } = await Product.findOne({_id}).lean()
+    const leanProduct = await Product.findOne({_id}).lean()
 
-    if (!product) return res.sendStatus(404)
-
+    if (!leanProduct) return res.sendStatus(404)
+  
+    const { __v, ...product } = leanProduct
     const category = await Category.findOne({_id: product.category})
 
     const data: any = {
       ...product,
       category: {
-        slug: category?.slug || '',
-        name: category?.name || ''
+        slug: category.slug,
+        name: category.name
       }
     }
 

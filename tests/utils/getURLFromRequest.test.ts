@@ -17,7 +17,7 @@ describe('utils/getURLFromRequest', function() {
   })
 
   it('Should generate a URL for the API from a request', function() {
-    expect(getURLFromRequest(req)).toEqual('foo://bar:3000')
+    expect(getURLFromRequest(req)).toEqual('foo://bar')
   })
   
   it('Should not add a port for ports 8080 and 80', function() {

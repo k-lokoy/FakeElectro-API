@@ -120,8 +120,17 @@ describe('routes/product', function() {
       })
     })
 
-    it('Should respond with a 500 status code if there was an issue getting data from the database', async function() {
-      const findOneSpy = jest.spyOn(Product, 'findOne')
+    it('Should respond with a 404 status code if there was an issue getting data from the database', async function() {
+      const randomId = new ObjectId()
+      const uri = `/product/${randomId.toString()}`
+      const res: any  = await supertest(app).get(uri)
+
+      expect(console.error).not.toHaveBeenCalled()
+      expect(res.status).toEqual(404)
+    })
+
+    it('Should respond with a 500 status code if the category doe snot exist', async function() {
+      const findOneSpy = jest.spyOn(Category, 'findOne')
       
       const err = new Error('Error message')
       findOneSpy.mockImplementation(() => { throw err })

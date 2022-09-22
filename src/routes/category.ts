@@ -20,8 +20,8 @@ categoryRouter.get('/:slug', async function(req, res) {
       const data: any = {
         ...product,
         category: {
-          slug: category?.slug,
-          name: category?.name,
+          slug: category.slug,
+          name: category.name,
         }
       }
 
